@@ -65,7 +65,7 @@ void parse_file(char* filename) {
 				//Initialize next TARGET variable
 				TARGET* tar = (TARGET*)malloc(sizeof(TARGET));
 				tar->name = targetName;
-				tar.->next = first;
+				tar->next = first;
 				first = tar;
 				tar->dependencies = NULL;
 				//Create linked list of dependencies
