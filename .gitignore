@@ -1,0 +1,11 @@
+#Ignore all
+*.*
+
+#Except
+!*.h
+!*.c
+!Makefile
+!Dimefile
+!Partners.txt
+!README.txt
+!.gitignore
