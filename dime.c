@@ -40,7 +40,7 @@ void parse_file(char* filename) {
 	FILE* fp = file_open(filename);
 	int level = 0; //0 = outside a target, 1 = reading inside braces of a target
 	first = NULL;
-	while(file_getline(line2, fp) != NULL) {
+	while((line2 = file_getline(line2, fp)) != NULL) {
 		//Get rid of newline
                 //allows us to do line++ without running into a seg fault
                 char * line = line2;
@@ -60,12 +60,13 @@ void parse_file(char* filename) {
                                                                                             //dependencies
                             {
                                     //Get target name
-                                    char* word = strtok(line, " \t");
+
+                                    char * word = strtok(line, " \t");
                                     if(line[strlen(line) - 1] != ':')
                                     {
                                             error("Dime target names must be followed by a colon.");
                                     }
-                                    char targetName[strlen(line) - 1];
+                                    char * targetName = malloc(sizeof(char)*(strlen(line)));
                                     strncpy(targetName, line, strlen(line)-1);
                                     //Initialize next TARGET variable
                                     TARGET* tar = (TARGET*)malloc(sizeof(TARGET));
@@ -73,11 +74,14 @@ void parse_file(char* filename) {
                                     tar->next = first;
                                     first = tar;
                                     tar->dependencies = NULL;
+                                    word = strtok(NULL, " \t");
                                     //Create linked list of dependencies
                                     while (word != NULL && *word != '{')
                                     {
                                             DEPENDENCY* dep = (DEPENDENCY*)malloc(sizeof(DEPENDENCY));
-                                            dep->name = word;
+                                            char * dep_name = malloc(sizeof(char)*160);
+                                            strcpy(dep_name, word);
+                                            dep->name = dep_name;
                                             dep->next = tar->dependencies;
                                             tar->dependencies = dep;
                                             word = strtok(NULL, " \t");
@@ -99,7 +103,9 @@ void parse_file(char* filename) {
                                     else //Read in a command and add it to the linked list in correct order
                                     {
                                             COMMAND* com = (COMMAND*)malloc(sizeof(COMMAND));
-                                            com->str = line;
+                                            char * command_str = malloc(sizeof(char)*(strlen(line) + 1));
+                                            strcpy(command_str, line);
+                                            com->str = command_str;
                                             if (currentCommand != NULL)
                                             {
                                                     currentCommand->next = com;
