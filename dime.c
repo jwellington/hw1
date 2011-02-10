@@ -170,6 +170,36 @@ int main(int argc, char* argv[]) {
 	
 	parse_file(filename);
 
+        TARGET * last = first;
+        while(last->next != NULL)
+            last = last->next;
+
+        if(last->dependencies == NULL)
+        {
+            COMMAND * com = last->commands;
+            while(com != NULL)
+            {
+                char * com_part  = strtok(com->str, " ");
+                char * com_list[5];
+                char * first_com = com_part;
+                int i;
+                for(i = 0; i < 5; i++)
+                {
+                    if(com_part != NULL)
+                    {
+                        com_list[i] = com_part;
+                        com_part = strtok(NULL, " ");
+                    }
+                    else
+                        com_list[i] = NULL;
+                }
+                fexecvp(first_com, com_list);
+                com = com->next;
+            }
+        }
+
+        char* args[] = {"ls", "-l", NULL};
+	//fexecvp("ls", args);
 	printf("First->data: %s \n", first->name);
 	
 
