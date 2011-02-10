@@ -9,7 +9,8 @@ test1: {
 # when test2 is the target, test1 should still be called
 # bogus is not a valid target, so it should be ignored
 test2: test1 bogus {
-	cat README
+	cat READ
+        cat README
 }
 
 # test running multiple commands

@@ -17,257 +17,226 @@
  * Simple usage instructions
  *********/
 void dime_usage(char* progname) {
-	fprintf(stderr, "Usage: %s [options] [target]\n", progname);
-	fprintf(stderr, "-f FILE\t\tRead FILE as a dimefile.\n");
-	fprintf(stderr, "-h\t\tPrint this message and exit.\n");
-	fprintf(stderr, "-n\t\tDon't actually execute commands, just print them.\n");
-	exit(0);
+    fprintf(stderr, "Usage: %s [options] [target]\n", progname);
+    fprintf(stderr, "-f FILE\t\tRead FILE as a dimefile.\n");
+    fprintf(stderr, "-h\t\tPrint this message and exit.\n");
+    fprintf(stderr, "-n\t\tDon't actually execute commands, just print them.\n");
+    exit(0);
 }
 
 //Prints error message and exits
-void error(char* message)
-{
-	fprintf(stderr, "Error: %s\n", message);
-	exit(0);
+
+void error(char* message) {
+    fprintf(stderr, "Error: %s\n", message);
+    exit(0);
 }
 
-TARGET* find_target(char * target_name)
-{
+TARGET* find_target(char * target_name) {
     TARGET * cur_target = first;
-    while(cur_target != NULL && strcmp((cur_target->name), target_name) != 0)
-                cur_target = cur_target->next;
-    
+    while (cur_target != NULL && strcmp((cur_target->name), target_name) != 0)
+        cur_target = cur_target->next;
+
     return cur_target;
 }
+
 /****************************** 
  * this is the function that, when given a proper filename, will
  * parse the dimefile and read in the rules
  ***************/
 void parse_file(char* filename) {
-	char* line2 = malloc(160*sizeof(char));
-	FILE* fp = file_open(filename);
-	int level = 0; //0 = outside a target, 1 = reading inside braces of a target
-	first = NULL;
-	while((line2 = file_getline(line2, fp)) != NULL) {
-		//Get rid of newline
-                //allows us to do line++ without running into a seg fault
-                char * line = line2;
-		line = strtok(line, "\n");
-		COMMAND* currentCommand = NULL;
-		//Skip past whitespace
-                if(line != NULL)
-                {
-                    while(line[0] == '\t' || line[0] == ' ')
-                    {
-                            line++;
-                    }
-                    //Ignore empty lines and comments
-                    if (*line != '\n' && *line != '\0' && *line != '#')
-                    {
-                            if (level == 0) //Should be reading in a line of a target and
-                                                                                            //dependencies
-                            {
-                                    //Get target name
-
-                                    char * word = strtok(line, " \t");
-                                    if(line[strlen(line) - 1] != ':')
-                                    {
-                                            error("Dime target names must be followed by a colon.");
-                                    }
-                                    char * targetName = malloc(sizeof(char)*(strlen(line)));
-                                    strncpy(targetName, line, strlen(line)-1);
-                                    //Initialize next TARGET variable
-                                    TARGET* tar = (TARGET*)malloc(sizeof(TARGET));
-                                    tar->name = targetName;
-                                    tar->next = first;
-                                    first = tar;
-                                    tar->dependencies = NULL;
-                                    word = strtok(NULL, " \t");
-                                    //Create linked list of dependencies
-                                    while (word != NULL && *word != '{')
-                                    {
-                                            DEPENDENCY* dep = (DEPENDENCY*)malloc(sizeof(DEPENDENCY));
-                                            char * dep_name = malloc(sizeof(char)*160);
-                                            strcpy(dep_name, word);
-                                            dep->name = dep_name;
-                                            dep->next = tar->dependencies;
-                                            tar->dependencies = dep;
-                                            word = strtok(NULL, " \t");
-                                    }
-                                    if (*word != '{')
-                                    {
-                                            error("The line containing the target name must end with a {");
-                                    }
-                                    level = 1;
-                            }
-                            else //We should be reading in commands of a close paren
-                            {
-
-                                TARGET * tar = first;
-                                    if (strlen(line) == 1 && *line == '}') //End the list of commands
-                                    {
-                                            level = 0;
-                                    }
-                                    else //Read in a command and add it to the linked list in correct order
-                                    {
-                                            COMMAND* com = (COMMAND*)malloc(sizeof(COMMAND));
-                                            char * command_str = malloc(sizeof(char)*(strlen(line) + 1));
-                                            strcpy(command_str, line);
-                                            com->str = command_str;
-                                            if (currentCommand != NULL)
-                                            {
-                                                    currentCommand->next = com;
-                                            }
-                                            else
-                                            {
-                                                    tar->commands = com;
-                                            }
-                                            currentCommand = com;
-                                    }
-                            }
-                    }
-                }
-	}
-	fclose(fp);
-	free(line2);
-}
-
-void fexecvp(const char* path, char* const argv[])
-{
-	pid_t child_pid;
-	child_pid = fork();
-	if (child_pid > 0)
-	{
-		wait(NULL);
-		return;
-	}
-	else if (child_pid == 0)
-	{
-		execvp(path, argv);
-	}
-}
-
-void run_commands(TARGET * cur_target, bool execute)
-{
-COMMAND * com = cur_target->commands;
-            while(com != NULL)
-            {
-                char * com_part  = strtok(com->str, " ");
-                char * com_list[5];
-                char * first_com = com_part;
-                int i;
-                for(i = 0; i < 5; i++)
-                {
-                    if(com_part != NULL)
-                    {
-                        com_list[i] = com_part;
-                        com_part = strtok(NULL, " ");
-                    }
-                    else
-                        com_list[i] = NULL;
-                }
-                if(execute)
-                    fexecvp(first_com, com_list);
-                else
-                {
-
-                    for(i = 0; i < 5; i++)
-                    {
-                        if(com_list[i] != NULL)
-                            printf("%s ", com_list[i]);
-                    }
-                    printf("\n");
-                }
-                com = com->next;
+    char* line2 = malloc(160 * sizeof (char));
+    FILE* fp = file_open(filename);
+    int level = 0; //0 = outside a target, 1 = reading inside braces of a target
+    first = NULL;
+    COMMAND* currentCommand = NULL;
+    while ((line2 = file_getline(line2, fp)) != NULL) {
+        //Get rid of newline
+        //allows us to do line++ without running into a seg fault
+        char * line = line2;
+        line = strtok(line, "\n");
+        //Skip past whitespace
+        if (line != NULL) {
+            while (line[0] == '\t' || line[0] == ' ') {
+                line++;
             }
+            //Ignore empty lines and comments
+            if (*line != '\n' && *line != '\0' && *line != '#') {
+                if (level == 0) //Should be reading in a line of a target and
+                    //dependencies
+                {
+                    //Get target name
+
+                    char * word = strtok(line, " \t");
+                    if (line[strlen(line) - 1] != ':') {
+                        error("Dime target names must be followed by a colon.");
+                    }
+                    char * targetName = malloc(sizeof (char) *(strlen(line)));
+                    strncpy(targetName, line, strlen(line) - 1);
+                    //Initialize next TARGET variable
+                    TARGET* tar = (TARGET*) malloc(sizeof (TARGET));
+                    tar->name = targetName;
+                    tar->next = first;
+                    first = tar;
+                    tar->dependencies = NULL;
+                    word = strtok(NULL, " \t");
+                    //Create linked list of dependencies
+                    while (word != NULL && *word != '{') {
+                        DEPENDENCY* dep = (DEPENDENCY*) malloc(sizeof (DEPENDENCY));
+                        char * dep_name = malloc(sizeof (char) *160);
+                        strcpy(dep_name, word);
+                        dep->name = dep_name;
+                        dep->next = tar->dependencies;
+                        tar->dependencies = dep;
+                        word = strtok(NULL, " \t");
+                    }
+                    if (*word != '{') {
+                        error("The line containing the target name must end with a {");
+                    }
+                    level = 1;
+                } else //We should be reading in commands of a close paren
+                {
+
+                    TARGET * tar = first;
+                    if (strlen(line) == 1 && *line == '}') //End the list of commands
+                    {
+                        level = 0;
+                        currentCommand = NULL;
+                    } else //Read in a command and add it to the linked list in correct order
+                    {
+                        COMMAND* com = (COMMAND*) malloc(sizeof (COMMAND));
+                        char * command_str = malloc(sizeof (char) *(strlen(line) + 1));
+                        strcpy(command_str, line);
+                        com->str = command_str;
+                        if (currentCommand != NULL) {
+                            currentCommand->next = com;
+                        } else {
+                            tar->commands = com;
+                        }
+                        currentCommand = com;
+                    }
+                }
+            }
+        }
+    }
+    fclose(fp);
+    free(line2);
+}
+
+void fexecvp(const char* path, char* const argv[]) {
+    pid_t child_pid;
+    child_pid = fork();
+    if (child_pid > 0) {
+        wait(NULL);
+        return;
+    } else if (child_pid == 0) {
+        execvp(path, argv);
+    }
+}
+
+void run_commands(TARGET * cur_target, bool execute) {
+    COMMAND * com = cur_target->commands;
+    while (com != NULL) {
+        char * com_part = strtok(com->str, " ");
+        char * com_list[5];
+        char * first_com = com_part;
+        int i;
+        for (i = 0; i < 5; i++) {
+            if (com_part != NULL) {
+                com_list[i] = com_part;
+                com_part = strtok(NULL, " ");
+            } else
+                com_list[i] = NULL;
+        }
+        if (execute)
+            fexecvp(first_com, com_list);
+        else {
+
+            for (i = 0; i < 5; i++) {
+                if (com_list[i] != NULL)
+                    printf("%s ", com_list[i]);
+            }
+            printf("\n");
+        }
+        com = com->next;
+    }
 }
 
 int main(int argc, char* argv[]) {
-	// Declarations for getopt
-	extern int optind;
-	extern char* optarg;
-	int ch;
-	char* format = "f:hn";
-	
-	// Variables you'll want to use
-	char* filename = "Dimefile";
-	bool execute = true;
+    // Declarations for getopt
+    extern int optind;
+    extern char* optarg;
+    int ch;
+    char* format = "f:hn";
 
-	// Part 2.2.1: Use getopt code to take input appropriately.
-	while((ch = getopt(argc, argv, format)) != -1) {
-		switch(ch) {
-			case 'f':
-				filename = optarg;
-				break;
-			case 'n':
-				execute = false;
-				break;
-			case 'h':
-				dime_usage(argv[0]);
-				break;
-		}
-	}
-	//Get rid of ./dime as the first argument
-	argc -= optind;
-	argv += optind;
-	
-	parse_file(filename);
+    // Variables you'll want to use
+    char* filename = "Dimefile";
+    bool execute = true;
+
+    // Part 2.2.1: Use getopt code to take input appropriately.
+    while ((ch = getopt(argc, argv, format)) != -1) {
+        switch (ch) {
+            case 'f':
+                filename = optarg;
+                break;
+            case 'n':
+                execute = false;
+                break;
+            case 'h':
+                dime_usage(argv[0]);
+                break;
+        }
+    }
+    //Get rid of ./dime as the first argument
+    argc -= optind;
+    argv += optind;
+
+    parse_file(filename);
 
 
-        //Find target
-        TARGET * cur_target = first;
-        if(argc == 0)
-        {
-            while(cur_target->next != NULL)
-                cur_target = cur_target->next;
+    //Find target
+    TARGET * cur_target = first;
+    if (argc == 0) {
+        while (cur_target->next != NULL)
+            cur_target = cur_target->next;
+    } else if (argc == 1) {
+        cur_target = find_target(argv[0]);
+        if (cur_target == NULL) {
+            error("Target specified is not in Dimefile\n");
         }
-        else if(argc == 1)
-        {
-            cur_target = find_target(argv[0]);
-            if(cur_target == NULL)
-            {
-                error("Target specified is not in Dimefile\n");
-            }
-        }
-        else
-        {
-            error("Argument structure not correct");
-        }
+    } else {
+        error("Argument structure not correct");
+    }
 
-        //Take care of dependencies and execute
-        if(!execute)
-        {
-            printf("Commands are: ");
-            run_commands(cur_target, execute);
+    //Take care of dependencies and execute
+    if (!execute) {
+        printf("Commands are: ");
+        run_commands(cur_target, execute);
+    } else {
+        DEPENDENCY * cur_depend = cur_target->dependencies;
+        TARGET * depend_target;
+        while (cur_depend != NULL) {
+            depend_target = find_target(cur_depend->name);
+            if (depend_target != NULL)
+                run_commands(depend_target, true);
+            cur_depend = cur_depend->next;
         }
-        else
-        {
-            DEPENDENCY * cur_depend = cur_target->dependencies;
-            TARGET * depend_target;
-            while(cur_depend != NULL)
-            {
-                depend_target = find_target(cur_depend->name);
-                if(depend_target != NULL)
-                    run_commands(depend_target, true);
-                cur_depend = cur_depend->next;
-            }
-            run_commands(cur_target, execute);
-            
-        }
-	
+        run_commands(cur_target, execute);
 
-	/* at this point, what is left in argv is the targets that were 
-		specified on the command line. argc has the number of them.
-		If getopt is still really confusing,
-		try printing out what's in argv right here, then just running 
-		dime with various command-line arguments. */
-		
-		//Example usage for executing a parsed command
-		//char* args[] = {"ls", "-l", NULL};
-		//fexecvp("ls", args);
-		
-	/* after parsing the file, you'll want to execute all of the targets
-		that were specified on the command line, along with their dependencies, etc. */
-	
-	return 0;
+    }
+
+
+    /* at this point, what is left in argv is the targets that were
+            specified on the command line. argc has the number of them.
+            If getopt is still really confusing,
+            try printing out what's in argv right here, then just running
+            dime with various command-line arguments. */
+
+    //Example usage for executing a parsed command
+    //char* args[] = {"ls", "-l", NULL};
+    //fexecvp("ls", args);
+
+    /* after parsing the file, you'll want to execute all of the targets
+            that were specified on the command line, along with their dependencies, etc. */
+
+    return 0;
 }
