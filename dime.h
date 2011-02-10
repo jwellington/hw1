@@ -35,5 +35,6 @@ void error(char* message);
 void dime_usage(char*);
 void parse_file(char*);
 void fexecvp(const char* path, char* const argv[]);
-
+void run_commands(TARGET * cur_target, bool execute);
+TARGET* find_target(char * target_name);
 #endif

@@ -31,6 +31,14 @@ void error(char* message)
 	exit(0);
 }
 
+TARGET* find_target(char * target_name)
+{
+    TARGET * cur_target = first;
+    while(cur_target != NULL && strcmp((cur_target->name), target_name) != 0)
+                cur_target = cur_target->next;
+    
+    return cur_target;
+}
 /****************************** 
  * this is the function that, when given a proper filename, will
  * parse the dimefile and read in the rules
@@ -139,6 +147,41 @@ void fexecvp(const char* path, char* const argv[])
 	}
 }
 
+void run_commands(TARGET * cur_target, bool execute)
+{
+COMMAND * com = cur_target->commands;
+            while(com != NULL)
+            {
+                char * com_part  = strtok(com->str, " ");
+                char * com_list[5];
+                char * first_com = com_part;
+                int i;
+                for(i = 0; i < 5; i++)
+                {
+                    if(com_part != NULL)
+                    {
+                        com_list[i] = com_part;
+                        com_part = strtok(NULL, " ");
+                    }
+                    else
+                        com_list[i] = NULL;
+                }
+                if(execute)
+                    fexecvp(first_com, com_list);
+                else
+                {
+
+                    for(i = 0; i < 5; i++)
+                    {
+                        if(com_list[i] != NULL)
+                            printf("%s ", com_list[i]);
+                    }
+                    printf("\n");
+                }
+                com = com->next;
+            }
+}
+
 int main(int argc, char* argv[]) {
 	// Declarations for getopt
 	extern int optind;
@@ -170,6 +213,8 @@ int main(int argc, char* argv[]) {
 	
 	parse_file(filename);
 
+
+        //Find target
         TARGET * cur_target = first;
         if(argc == 0)
         {
@@ -178,8 +223,7 @@ int main(int argc, char* argv[]) {
         }
         else if(argc == 1)
         {
-            while(cur_target != NULL && strcmp((cur_target->name), argv[0]) != 0)
-                cur_target = cur_target->next;
+            cur_target = find_target(argv[0]);
             if(cur_target == NULL)
             {
                 error("Target specified is not in Dimefile\n");
@@ -190,43 +234,25 @@ int main(int argc, char* argv[]) {
             error("Argument structure not correct");
         }
 
-
+        //Take care of dependencies and execute
         if(!execute)
-            printf("Commands are: ");
-
-        if(cur_target->dependencies == NULL)
         {
-            COMMAND * com = cur_target->commands;
-            while(com != NULL)
+            printf("Commands are: ");
+            run_commands(cur_target, execute);
+        }
+        else
+        {
+            DEPENDENCY * cur_depend = cur_target->dependencies;
+            TARGET * depend_target;
+            while(cur_depend != NULL)
             {
-                char * com_part  = strtok(com->str, " ");
-                char * com_list[5];
-                char * first_com = com_part;
-                int i;
-                for(i = 0; i < 5; i++)
-                {
-                    if(com_part != NULL)
-                    {
-                        com_list[i] = com_part;
-                        com_part = strtok(NULL, " ");
-                    }
-                    else
-                        com_list[i] = NULL;
-                }
-                if(execute)
-                    fexecvp(first_com, com_list);
-                else
-                {
-
-                    for(i = 0; i < 5; i++)
-                    {
-                        if(com_list[i] != NULL)
-                            printf("%s ", com_list[i]);
-                    }
-                    printf("\n");
-                }
-                com = com->next;
+                depend_target = find_target(cur_depend->name);
+                if(depend_target != NULL)
+                    run_commands(depend_target, true);
+                cur_depend = cur_depend->next;
             }
+            run_commands(cur_target, execute);
+            
         }
 	
 
