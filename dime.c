@@ -170,13 +170,33 @@ int main(int argc, char* argv[]) {
 	
 	parse_file(filename);
 
-        TARGET * last = first;
-        while(last->next != NULL)
-            last = last->next;
-
-        if(last->dependencies == NULL)
+        TARGET * cur_target = first;
+        if(argc == 0)
         {
-            COMMAND * com = last->commands;
+            while(cur_target->next != NULL)
+                cur_target = cur_target->next;
+        }
+        else if(argc == 1)
+        {
+            while(cur_target != NULL && strcmp((cur_target->name), argv[0]) != 0)
+                cur_target = cur_target->next;
+            if(cur_target == NULL)
+            {
+                error("Target specified is not in Dimefile\n");
+            }
+        }
+        else
+        {
+            error("Argument structure not correct");
+        }
+
+
+        if(!execute)
+            printf("Commands are: ");
+
+        if(cur_target->dependencies == NULL)
+        {
+            COMMAND * com = cur_target->commands;
             while(com != NULL)
             {
                 char * com_part  = strtok(com->str, " ");
@@ -193,14 +213,21 @@ int main(int argc, char* argv[]) {
                     else
                         com_list[i] = NULL;
                 }
-                fexecvp(first_com, com_list);
+                if(execute)
+                    fexecvp(first_com, com_list);
+                else
+                {
+
+                    for(i = 0; i < 5; i++)
+                    {
+                        if(com_list[i] != NULL)
+                            printf("%s ", com_list[i]);
+                    }
+                    printf("\n");
+                }
                 com = com->next;
             }
         }
-
-        char* args[] = {"ls", "-l", NULL};
-	//fexecvp("ls", args);
-	printf("First->data: %s \n", first->name);
 	
 
 	/* at this point, what is left in argv is the targets that were 
