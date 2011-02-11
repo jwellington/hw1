@@ -15,6 +15,7 @@ typedef int bool;
 typedef struct command
 {
 	char* str;
+        struct command* concurrent;
 	struct command* next;
 }COMMAND;
 typedef struct dependency
@@ -35,6 +36,7 @@ void error(char* message);
 void dime_usage(char*);
 void parse_file(char*);
 void fexecvp(const char* path, char* const argv[]);
-void run_commands(TARGET * cur_target, bool execute);
+void run_target(TARGET * cur_target, bool execute);
+void run_command(COMMAND * com, bool execute);
 TARGET* find_target(char * target_name);
 #endif

@@ -51,8 +51,8 @@ void parse_file(char* filename) {
     COMMAND* currentCommand = NULL;
     while ((line2 = file_getline(line2, fp)) != NULL) {
         //Get rid of newline
-        //allows us to do line++ without running into a seg fault
-        char * line = line2;
+
+        char * line = line2; //allows us to do line++ without running into a seg fault
         line = strtok(line, "\n");
         //Skip past whitespace
         if (line != NULL) {
@@ -105,8 +105,29 @@ void parse_file(char* filename) {
                     {
                         COMMAND* com = (COMMAND*) malloc(sizeof (COMMAND));
                         char * command_str = malloc(sizeof (char) *(strlen(line) + 1));
+
+                        line = strtok(line, ",");
                         strcpy(command_str, line);
+
                         com->str = command_str;
+
+                        line = strtok(NULL, ",");
+                        COMMAND* concurrent_place = com;
+                        while (line != NULL) {
+                            while (line[0] == ' ')
+                                line++;
+
+                            COMMAND* concurrent_com = (COMMAND*) malloc(sizeof (COMMAND));
+                            char * concurrent_str = malloc(sizeof (char) *(strlen(line) + 1));
+                            strcpy(concurrent_str, line);
+                            concurrent_com->str = concurrent_str;
+                            concurrent_com->concurrent = NULL;
+
+                            concurrent_place->concurrent = concurrent_com;
+                            concurrent_place = concurrent_com;
+                            line = strtok(NULL, ",");
+                        }
+
                         if (currentCommand != NULL) {
                             currentCommand->next = com;
                         } else {
@@ -133,32 +154,46 @@ void fexecvp(const char* path, char* const argv[]) {
     }
 }
 
-void run_commands(TARGET * cur_target, bool execute) {
+void run_target(TARGET * cur_target, bool execute) {
     COMMAND * com = cur_target->commands;
     while (com != NULL) {
-        char * com_part = strtok(com->str, " ");
-        char * com_list[5];
-        char * first_com = com_part;
-        int i;
-        for (i = 0; i < 5; i++) {
-            if (com_part != NULL) {
-                com_list[i] = com_part;
-                com_part = strtok(NULL, " ");
-            } else
-                com_list[i] = NULL;
-        }
-        if (execute)
-            fexecvp(first_com, com_list);
-        else {
-
-            for (i = 0; i < 5; i++) {
-                if (com_list[i] != NULL)
-                    printf("%s ", com_list[i]);
-            }
-            printf("\n");
+        COMMAND * cur_command = com;
+        while (cur_command != NULL)
+        {
+            run_command(cur_command, execute);
+            cur_command = cur_command->concurrent;
         }
         com = com->next;
     }
+    
+}
+
+void run_command(COMMAND * com, bool execute) {
+    char * com_part = strtok(com->str, " ");
+    char * com_list[5];
+    char * first_com = com_part;
+    int i;
+
+    for (i = 0; i < 5; i++) {
+        if (com_part != NULL) {
+            com_list[i] = com_part;
+            com_part = strtok(NULL, " ");
+        }
+        else
+            com_list[i] = NULL;
+    }
+
+    if (execute)
+        fexecvp(first_com, com_list);
+    else {
+
+        for (i = 0; i < 5; i++) {
+            if (com_list[i] != NULL)
+                printf("%s ", com_list[i]);
+        }
+        printf("\n");
+    }
+
 }
 
 int main(int argc, char* argv[]) {
@@ -169,7 +204,7 @@ int main(int argc, char* argv[]) {
     char* format = "f:hn";
 
     // Variables you'll want to use
-    char* filename = "Dimefile";
+    char* filename = "Dimefile.windows";
     bool execute = true;
 
     // Part 2.2.1: Use getopt code to take input appropriately.
@@ -210,17 +245,17 @@ int main(int argc, char* argv[]) {
     //Take care of dependencies and execute
     if (!execute) {
         printf("Commands are: ");
-        run_commands(cur_target, execute);
+        run_target(cur_target, execute);
     } else {
         DEPENDENCY * cur_depend = cur_target->dependencies;
         TARGET * depend_target;
         while (cur_depend != NULL) {
             depend_target = find_target(cur_depend->name);
             if (depend_target != NULL)
-                run_commands(depend_target, true);
+                run_target(depend_target, true);
             cur_depend = cur_depend->next;
         }
-        run_commands(cur_target, execute);
+        run_target(cur_target, execute);
 
     }
 
