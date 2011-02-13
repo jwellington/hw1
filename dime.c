@@ -105,7 +105,7 @@ void parse_file(char* filename) {
                     {
                         COMMAND* com = (COMMAND*) malloc(sizeof (COMMAND));
                         char * command_str = malloc(sizeof (char) *(strlen(line) + 1));
-
+												//Break up line by commas
                         line = strtok(line, ",");
                         strcpy(command_str, line);
 
@@ -143,6 +143,7 @@ void parse_file(char* filename) {
     free(line2);
 }
 
+//Safely executes a program by creating a branch first
 void fexecvp(const char* path, char* const argv[]) {
     pid_t child_pid;
     child_pid = fork();
@@ -154,6 +155,8 @@ void fexecvp(const char* path, char* const argv[]) {
     }
 }
 
+//Runs the commands of a Dimefile target, giving priority to commands on the
+//same line
 void run_target(TARGET * cur_target, bool execute) {
     COMMAND * com = cur_target->commands;
     while (com != NULL) {
@@ -168,6 +171,8 @@ void run_target(TARGET * cur_target, bool execute) {
     
 }
 
+//Breaks up the argument of a command and executes or displays them, 
+//depending on user input
 void run_command(COMMAND * com, bool execute) {
     char * com_part = strtok(com->str, " ");
     char * com_list[5];
@@ -204,7 +209,7 @@ int main(int argc, char* argv[]) {
     char* format = "f:hn";
 
     // Variables you'll want to use
-    char* filename = "Dimefile.windows";
+    char* filename = "Dimefile";
     bool execute = true;
 
     // Part 2.2.1: Use getopt code to take input appropriately.
@@ -258,20 +263,6 @@ int main(int argc, char* argv[]) {
         run_target(cur_target, execute);
 
     }
-
-
-    /* at this point, what is left in argv is the targets that were
-            specified on the command line. argc has the number of them.
-            If getopt is still really confusing,
-            try printing out what's in argv right here, then just running
-            dime with various command-line arguments. */
-
-    //Example usage for executing a parsed command
-    //char* args[] = {"ls", "-l", NULL};
-    //fexecvp("ls", args);
-
-    /* after parsing the file, you'll want to execute all of the targets
-            that were specified on the command line, along with their dependencies, etc. */
 
     return 0;
 }
