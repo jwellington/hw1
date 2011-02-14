@@ -15,7 +15,7 @@ test2: test1 bogus {
 # test running multiple commands
 test3: {
 # uncomment the following line if you're doing extra credit!
-#	sort Dimefile -o /tmp/foobar1, sort -r Dimefile -o /tmp/foobar2
+	sort Dimefile -o /tmp/foobar1, sort -r Dimefile -o /tmp/foobar2
 	sort Dimefile -o /tmp/foobar1
 	sort -r Dimefile -o /tmp/foobar2
 	tail -5 /tmp/foobar1

@@ -13,9 +13,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 
-/*********
- * Simple usage instructions
- *********/
+//Prints usage instructions and exits
 void dime_usage(char* progname) {
     fprintf(stderr, "Usage: %s [options] [target]\n", progname);
     fprintf(stderr, "-f FILE\t\tRead FILE as a dimefile.\n");
@@ -24,18 +22,19 @@ void dime_usage(char* progname) {
     exit(0);
 }
 
-//Prints error message and exits
-
+//Prints the error message and exits
 void error(char* message) {
     fprintf(stderr, "Error: %s\n", message);
     exit(0);
 }
 
+//Returns the target target with the given name, or NULL if not found
 TARGET* find_target(char * target_name) {
     TARGET * cur_target = first;
     while (cur_target != NULL && strcmp((cur_target->name), target_name) != 0)
+    {
         cur_target = cur_target->next;
-
+    }
     return cur_target;
 }
 
@@ -111,11 +110,14 @@ void parse_file(char* filename) {
 
                         com->str = command_str;
 
+												//Create list of concurrent commands
                         line = strtok(NULL, ",");
                         COMMAND* concurrent_place = com;
                         while (line != NULL) {
                             while (line[0] == ' ')
+                            {
                                 line++;
+                            }
 
                             COMMAND* concurrent_com = (COMMAND*) malloc(sizeof (COMMAND));
                             char * concurrent_str = malloc(sizeof (char) *(strlen(line) + 1));
@@ -171,15 +173,18 @@ void run_target(TARGET * cur_target, bool execute) {
     
 }
 
-//Breaks up the argument of a command and executes or displays them, 
+//Breaks up the arguments of a command and executes or displays them, 
 //depending on user input
 void run_command(COMMAND * com, bool execute) {
     char * com_part = strtok(com->str, " ");
-    char * com_list[5];
+    //80 is the maximum number of tokens a 160-character line can have
+    int numTokens = 80;
+    char * com_list[numTokens];
     char * first_com = com_part;
     int i;
 
-    for (i = 0; i < 5; i++) {
+		//Populate array of tokens
+    for (i = 0; i < numTokens; i++) {
         if (com_part != NULL) {
             com_list[i] = com_part;
             com_part = strtok(NULL, " ");
@@ -188,17 +193,79 @@ void run_command(COMMAND * com, bool execute) {
             com_list[i] = NULL;
     }
 
+		//Execute or display the command
     if (execute)
+    {
         fexecvp(first_com, com_list);
+    }
     else {
-
-        for (i = 0; i < 5; i++) {
+        for (i = 0; i < numTokens; i++) {
             if (com_list[i] != NULL)
                 printf("%s ", com_list[i]);
         }
         printf("\n");
     }
 
+}
+
+//Deletes a chain of concurrent commands
+void clean_concurrent(COMMAND* com)
+{
+	COMMAND* temp = com->next;
+	free(com);
+	if (temp == NULL)
+	{
+		return;
+	}
+	clean_concurrent(temp);
+}
+
+//Tail recursively deletes a COMMAND variable and its concurrent commands
+void clean_command(COMMAND* com)
+{
+	if (com->concurrent != NULL)
+	{
+		clean_concurrent(com);
+	}
+	COMMAND* temp = com->next;
+	free(com);
+	if (temp == NULL)
+	{
+		return;
+	}
+	clean_command(temp);
+}
+
+//Tail recursively deletes a DEPENDENMCY variable and the ones it links to
+void clean_dependency(DEPENDENCY* dep)
+{
+	DEPENDENCY* temp = dep->next;
+	free(dep);
+	if (temp == NULL)
+	{
+		return;
+	}
+	clean_dependency(temp);
+}
+
+//Tail recursively deletes a TARGET variable and all its subvariables
+void clean_target(TARGET* tar)
+{
+	if (tar->dependencies != NULL)
+	{
+		clean_dependency(tar->dependencies);
+	}
+	if (tar->commands != NULL)
+	{
+		clean_command(tar->commands);
+	}
+	TARGET* temp = tar->next;
+	free(tar);
+	if (temp == NULL)
+	{
+		return;
+	}
+	clean_target(temp);
 }
 
 int main(int argc, char* argv[]) {
@@ -263,6 +330,9 @@ int main(int argc, char* argv[]) {
         run_target(cur_target, execute);
 
     }
+    
+    //Recursively delete all allocated variables
+    clean_target(first);
 
     return 0;
 }

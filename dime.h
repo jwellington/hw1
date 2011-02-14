@@ -38,5 +38,9 @@ void parse_file(char*);
 void fexecvp(const char* path, char* const argv[]);
 void run_target(TARGET * cur_target, bool execute);
 void run_command(COMMAND * com, bool execute);
+void clean_target(TARGET* tar);
+void clean_dependency(DEPENDENCY* dep);
+void clean_command(COMMAND* com);
+void clean_concurrent(COMMAND* com);
 TARGET* find_target(char * target_name);
 #endif
