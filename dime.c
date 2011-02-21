@@ -225,7 +225,7 @@ void clean_command(COMMAND* com)
 {
 	if (com->concurrent != NULL)
 	{
-		clean_concurrent(com);
+		clean_concurrent(com->concurrent);
 	}
 	COMMAND* temp = com->next;
 	free(com);
