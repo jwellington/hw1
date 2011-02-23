@@ -1,22 +1,6 @@
 # this is the Dimefile to give an example of what you should be able
 # to handle
-
-# simple case
-test1: {
-	ls -l
+funnier: funny.txt {
+         cat funny.txt | sed 's/funny/funnier/g'
 }
 
-# when test2 is the target, test1 should still be called
-# bogus is not a valid target, so it should be ignored
-test2: test1 bogus {
-	cat README
-}
-
-# test running multiple commands
-test3: {
-# uncomment the following line if you're doing extra credit!
-	sort Dimefile -o /tmp/foobar1, sort -r Dimefile -o /tmp/foobar2
-#	sort Dimefile -o /tmp/foobar1
-#	sort -r Dimefile -o /tmp/foobar2
-	tail -5 /tmp/foobar1
-}

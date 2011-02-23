@@ -69,7 +69,7 @@ void parse_file(char* filename) {
                     if (line[strlen(line) - 1] != ':') {
                         error("Dime target names must be followed by a colon.");
                     }
-                    char * targetName = malloc(sizeof (char) *(strlen(line)));
+                    char * targetName = malloc(sizeof (char) *(strlen(line)) + 1);
                     strncpy(targetName, line, strlen(line) - 1);
                     //Initialize next TARGET variable
                     TARGET* tar = (TARGET*) malloc(sizeof (TARGET));
@@ -104,9 +104,14 @@ void parse_file(char* filename) {
                     {
                         COMMAND* com = (COMMAND*) malloc(sizeof (COMMAND));
                         char * command_str = malloc(sizeof (char) *(strlen(line) + 1));
+
+                        //Encode the commas in quotes
+                        comma_in_quote_encode(line);
+                       
 												//Break up line by commas
                         line = strtok(line, ",");
                         strcpy(command_str, line);
+                        comma_in_quote_decode(command_str);
 
                         com->str = command_str;
 
@@ -122,6 +127,10 @@ void parse_file(char* filename) {
                             COMMAND* concurrent_com = (COMMAND*) malloc(sizeof (COMMAND));
                             char * concurrent_str = malloc(sizeof (char) *(strlen(line) + 1));
                             strcpy(concurrent_str, line);
+
+                            //Decode the commas in quotes
+                            comma_in_quote_decode(concurrent_str);
+
                             concurrent_com->str = concurrent_str;
                             concurrent_com->concurrent = NULL;
 
@@ -145,6 +154,50 @@ void parse_file(char* filename) {
     free(line2);
 }
 
+//Replace commas in quotes with other characters to not
+//mess up the strtok on the comma
+void comma_in_quote_encode(char * line)
+{
+    bool inQuotes = false;
+    int j = 0;
+    while (line[j] != '\0') {
+        if (line[j] == '\'') {
+            inQuotes = !inQuotes;
+        } else if (line[j] == ',' && inQuotes) {
+            line[j] = '\n';
+        }
+        j++;
+    }
+    if (inQuotes) {
+        error("Open quote in command");
+    }
+    inQuotes = false;
+
+    j = 0;
+    while (line[j] != '\0') {
+        if (line[j] == '\"') {
+            inQuotes = !inQuotes;
+        } else if (line[j] == ',' && inQuotes) {
+            line[j] = '\n';
+        }
+        j++;
+    }
+    if(inQuotes){
+        error("Open quote in command");
+    }
+}
+
+
+void comma_in_quote_decode(char * line)
+{
+    int j = 0;
+    while (line[j] != '\0') {
+        if (line[j] == '\n') {
+            line[j] = ',';
+        }
+        j++;
+    }
+}
 //Safely executes a program by creating a branch first
 void fexecvp(const char* path, char* const argv[]) {
     pid_t child_pid;
@@ -196,7 +249,69 @@ void run_command(COMMAND * com, bool execute) {
 		//Execute or display the command
     if (execute)
     {
-        fexecvp(first_com, com_list);
+        //Check for pipes
+        int has_pipe = -1;
+        for(i = 0; i < numTokens; i++)
+        {
+            if(com_list[i] != NULL && strcmp(com_list[i],"|") == 0)
+            {
+                has_pipe = i;
+            }
+        }
+        char * com_list_2[numTokens];
+        if(has_pipe != -1)
+        {
+            com_list[has_pipe] = NULL;
+            int j = 0;
+            for(i = has_pipe + 1; i < numTokens;i++)
+            {
+                com_list_2[j++] = com_list[i];
+                com_list[i] = NULL;
+                
+            }
+            
+            for(;j < numTokens;j++)
+            {
+                com_list_2[j] = NULL;
+            }
+
+            int pipe_files[2];
+            /*int old_stdin = stdin;
+            int old_stdout = stdout;*/
+            pipe(pipe_files);
+
+
+            int child_pid = fork();
+            if(child_pid  > 0)
+            {
+                close(pipe_files[1]);
+                FILE * stream = fdopen(pipe_files[0], "r");
+                dup2(pipe_files[1], STDIN_FILENO);
+                printf("hi");
+                for(i = 0; i < numTokens; i++)
+                {
+                    if(com_list_2[i] != NULL)
+                    printf("\nCommand: %s\n",com_list_2[i]);
+                }
+                
+
+                fexecvp(com_list_2[0], com_list_2);
+                fclose (stream);
+
+            }
+            else if(child_pid == 0)
+            {
+                close(pipe_files[0]);
+                dup2(pipe_files[1], STDOUT_FILENO);
+                fexecvp(first_com,com_list);
+                fclose(stdout);
+                return;
+            }
+        }
+        else
+        {
+            fexecvp(first_com, com_list);
+        }
     }
     else {
         for (i = 0; i < numTokens; i++) {

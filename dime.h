@@ -35,6 +35,8 @@ TARGET* first;
 void error(char* message);
 void dime_usage(char*);
 void parse_file(char*);
+void comma_in_quote_encode(char * line);
+void comma_in_quote_decode(char * line);
 void fexecvp(const char* path, char* const argv[]);
 void run_target(TARGET * cur_target, bool execute);
 void run_command(COMMAND * com, bool execute);
