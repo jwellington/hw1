@@ -32,6 +32,9 @@ typedef struct target
 }TARGET;
 
 TARGET* first;
+//80 is the maximum number of tokens a 160-character line can have
+int maxTokens = 80;
+
 void error(char* message);
 void dime_usage(char*);
 void parse_file(char*);

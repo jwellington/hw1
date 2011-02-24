@@ -230,22 +230,24 @@ void run_target(TARGET * cur_target, bool execute) {
 //depending on user input
 void run_command(COMMAND * com, bool execute) {
     char * com_part = strtok(com->str, " ");
+    //80 is the maximum number of tokens a 160-character line can have
     int numTokens = maxTokens + 1;
-    char * com_list[maxTokens];
-    int i = 0;
+    char * com_list[numTokens];
+    int i;
 	//Populate array of tokens
-    for (; i < maxTokens; i++) {
-         com_list[i] = com_part;
-         com_part = strtok(NULL, " ");
-         if (com_part == NULL && numTokens > maxTokens)
-         {
-             numTokens = i + 1;
-         }
+    for (i = 0; i < maxTokens; i++) {
+            com_list[i] = com_part;
+            if (com_part != NULL)
+            {
+                printf("%s ", com_part);
+            }
+            com_part = strtok(NULL, " ");
+            if (com_part == NULL && numTokens > maxTokens)
+            {
+                numTokens = i + 1;
+            }
     }
-    if (numTokens > maxTokens)
-    {
-    	numTokens = maxTokens;
-    }
+    printf("Hi");
 	//Execute or display the command
     if (execute)
     {
@@ -261,14 +263,15 @@ void run_command(COMMAND * com, bool execute) {
         //If there is a pipe, set up and populate second list of commands
         if(has_pipe != -1)
         {
-            char * com_list_2[numTokens - has_pipe];
+            char * com_list_2[numTokens - (has_pipe + 1)];
             com_list[has_pipe] = NULL;
+            int j = 0;
             for(i = has_pipe + 1; i < numTokens; i++)
             {
-                com_list_2[i - (has_pipe + 1)] = com_list[i];
+                com_list_2[j] = com_list[i];
+                j++;
                 com_list[i] = NULL;
             }
-            com_list_2[numTokens - has_pipe - 1] = NULL;
             //All commands in com_list at the pipe token and afterward are NULL
 
             int pipe_files[2];
@@ -291,6 +294,7 @@ void run_command(COMMAND * com, bool execute) {
                 dup2(pipe_files[1], STDOUT_FILENO);
                 fexecvp(com_list[0],com_list);
                 fclose(stdout);
+                return;
             }
         }
         else
