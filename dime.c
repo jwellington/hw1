@@ -229,83 +229,90 @@ void run_target(TARGET * cur_target, bool execute) {
 //Breaks up the arguments of a command and executes or displays them, 
 //depending on user input
 void run_command(COMMAND * com, bool execute) {
-    char * com_part = strtok(com->str, " ");
-    int numTokens = maxTokens + 1;
-    char * com_list[maxTokens];
-    int i = 0;
+	char * com_part = strtok(com->str, " ");
+	int numTokens = maxTokens + 1;
+	char * com_list[maxTokens + 1];
+	com_list[maxTokens] = NULL;
+	int i = 0;
 	//Populate array of tokens
-    for (; i < maxTokens; i++) {
-         com_list[i] = com_part;
-         com_part = strtok(NULL, " ");
-         if (com_part == NULL && numTokens > maxTokens)
-         {
-             numTokens = i + 1;
-         }
-    }
-    if (numTokens > maxTokens)
-    {
-    	numTokens = maxTokens;
-    }
+	for (; i < maxTokens; i++) {
+		com_list[i] = com_part;
+		com_part = strtok(NULL, " ");
+		if (com_part == NULL && numTokens > maxTokens)
+		{
+		    numTokens = i + 1;
+		}
+	}
+	if (numTokens > maxTokens)
+	{
+	    numTokens = maxTokens;
+	}
 	//Execute or display the command
-    if (execute)
+	if (execute)
+	{
+	    run_tokens(com_list, numTokens);
+	}
+	else {
+	  for (i = 0; i < numTokens; i++) {
+		   if (com_list[i] != NULL)
+		       printf("%s ", com_list[i]);
+	  }
+	  printf("\n");
+	}
+}
+
+void run_tokens(char* com_list[], int numTokens)
+{
+    //Check for pipes
+    int has_pipe = -1;
+    int i;
+    for(i = 0; i < numTokens; i++)
     {
-        //Check for pipes
-        int has_pipe = -1;
-        for(i = 0; i < numTokens; i++)
-        {
-            if(com_list[i] != NULL && strcmp(com_list[i],"|") == 0)
-            {
-                has_pipe = i;
-            }
-        }
-        //If there is a pipe, set up and populate second list of commands
-        if(has_pipe != -1)
-        {
-            char * com_list_2[numTokens - has_pipe];
-            com_list[has_pipe] = NULL;
-            for(i = has_pipe + 1; i < numTokens; i++)
-            {
-                com_list_2[i - (has_pipe + 1)] = com_list[i];
-                com_list[i] = NULL;
-            }
-            com_list_2[numTokens - has_pipe - 1] = NULL;
-            //All commands in com_list at the pipe token and afterward are NULL
-
-            int pipe_files[2];
-            pipe(pipe_files);
-
-            int child_pid = fork();
-            if(child_pid > 0)
-            {
-                close(pipe_files[1]);
-                FILE * stream = fdopen(pipe_files[0], "r");
-                dup2(pipe_files[0], STDIN_FILENO);
-                fexecvp(com_list_2[0], com_list_2);
-                fclose(stream);
-                wait(NULL);
-                return;
-            }
-            else if(child_pid == 0)
-            {
-                close(pipe_files[0]);
-                dup2(pipe_files[1], STDOUT_FILENO);
-                fexecvp(com_list[0],com_list);
-                fclose(stdout);
-            }
-        }
-        else
-        {
-            fexecvp(com_list[0], com_list);
-        }
+       if(com_list[i] != NULL && strcmp(com_list[i],"|") == 0)
+       {
+           has_pipe = i;
+           break;
+       }
     }
-    else {
-        for (i = 0; i < numTokens; i++) {
-            if (com_list[i] != NULL)
-                printf("%s ", com_list[i]);
-        }
-        printf("\n");
-    }
+    //If there is a pipe, set up and populate second list of commands
+    if(has_pipe != -1)
+    {
+       char * com_list_2[numTokens - has_pipe];
+       com_list[has_pipe] = NULL;
+       for(i = has_pipe + 1; i < numTokens; i++)
+       {
+           com_list_2[i - (has_pipe + 1)] = com_list[i];
+           com_list[i] = NULL;
+       }
+       com_list_2[numTokens - has_pipe - 1] = NULL;
+       //All commands in com_list at the pipe token and afterward are NULL
 
+       int pipe_files[2];
+       pipe(pipe_files);
+
+       int child_pid = fork();
+       if(child_pid > 0)
+       {
+           close(pipe_files[1]);
+           FILE * stream = fdopen(pipe_files[0], "r");
+           dup2(pipe_files[0], STDIN_FILENO);
+           run_tokens(com_list_2, numTokens - (has_pipe + 1));
+           fclose(stream);
+           wait(NULL);
+           return;
+       }
+       else if(child_pid == 0)
+       {
+           close(pipe_files[0]);
+           dup2(pipe_files[1], STDOUT_FILENO);
+           fexecvp(com_list[0],com_list);
+           fclose(stdout);
+       }
+    }
+    else
+    {
+       fexecvp(com_list[0], com_list);
+    }
 }
 
 //Deletes a chain of concurrent commands

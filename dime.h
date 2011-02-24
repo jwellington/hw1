@@ -43,6 +43,7 @@ void comma_in_quote_decode(char * line);
 void fexecvp(const char* path, char* const argv[]);
 void run_target(TARGET * cur_target, bool execute);
 void run_command(COMMAND * com, bool execute);
+void run_tokens(char* com_list[], int numTokens);
 void clean_target(TARGET* tar);
 void clean_dependency(DEPENDENCY* dep);
 void clean_command(COMMAND* com);
