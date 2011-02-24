@@ -159,7 +159,7 @@ void parse_file(char* filename) {
 void comma_in_quote_encode(char * line)
 {
     bool inQuotes = false;
-    int j = 0;
+ mal   int j = 0;
     while (line[j] != '\0') {
         if (line[j] == '\'') {
             inQuotes = !inQuotes;
@@ -343,6 +343,7 @@ void clean_command(COMMAND* com)
 		clean_concurrent(com->concurrent);
 	}
 	COMMAND* temp = com->next;
+	free(com->str);
 	free(com);
 	if (temp == NULL)
 	{
@@ -351,10 +352,11 @@ void clean_command(COMMAND* com)
 	clean_command(temp);
 }
 
-//Tail recursively deletes a DEPENDENMCY variable and the ones it links to
+//Tail recursively deletes a DEPENDENCY variable and the ones it links to
 void clean_dependency(DEPENDENCY* dep)
 {
 	DEPENDENCY* temp = dep->next;
+	free(dep->name);
 	free(dep);
 	if (temp == NULL)
 	{
@@ -375,6 +377,7 @@ void clean_target(TARGET* tar)
 		clean_command(tar->commands);
 	}
 	TARGET* temp = tar->next;
+	free(tar->name);
 	free(tar);
 	if (temp == NULL)
 	{
