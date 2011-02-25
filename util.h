@@ -15,5 +15,7 @@
 // This stuff is for easy file reading
 FILE* file_open(char*);
 char* file_getline(char*, FILE*);
+char* current_time();
+char* concatenate_strings(char* a, char* b);
 
 #endif

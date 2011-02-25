@@ -7,6 +7,8 @@
 
 #include "util.h"
 #include "dime.h"
+#include <time.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
@@ -19,13 +21,64 @@ void dime_usage(char* progname) {
     fprintf(stderr, "-f FILE\t\tRead FILE as a dimefile.\n");
     fprintf(stderr, "-h\t\tPrint this message and exit.\n");
     fprintf(stderr, "-n\t\tDon't actually execute commands, just print them.\n");
+    fprintf(stderr, "-a\t\tExecute all commands, regardless of modification time.\n");
+    fprintf(stderr, "-l [LOG]\t\tSend output to LOG (dime.log by default).\n");
+    fprintf(stderr, "-L [LOG]\t\tLike L, but clear LOG if it already exists.\n");
     exit(0);
 }
 
 //Prints the error message and exits
 void error(char* message) {
     fprintf(stderr, "Error: %s\n", message);
+    write_log(message);
     exit(0);
+}
+
+//Prints out message with a newline and appends it to the log
+void lprintf(char* message)
+{
+    write_log(message);
+    printf("%s", message);
+}
+
+//Resets the log to an empty file.
+void reset_log()
+{
+    FILE* f;
+    f = fopen(logfile, "w");
+    if (f != NULL)
+    {
+        fwrite("", sizeof(char), 0, f);
+        fclose(f);
+    }
+    else
+    {
+        printf("Unable to open logfile for resetting.\n");
+        exit(0);
+    }
+}
+
+//Writes the message to the log, if logging is enabled.
+void write_log(char* message)
+{
+    if (logging)
+    {
+        FILE* f;
+        f = fopen(logfile, "a");
+        if (f != NULL)
+        {
+            char message2[strlen(message) + 1];
+            sprintf(message2, "%s",message);
+            printf("Writing %s",message);
+            fwrite(message2, sizeof(char), strlen(message2), f);
+            fclose(f);
+        }
+        else
+        {
+            printf("Unable to open logfile for writing.\n");
+            exit(0);
+        }
+    } 
 }
 
 //Returns the target target with the given name, or NULL if not found
@@ -50,7 +103,6 @@ void parse_file(char* filename) {
     COMMAND* currentCommand = NULL;
     while ((line2 = file_getline(line2, fp)) != NULL) {
         //Get rid of newline
-
         char * line = line2; //allows us to do line++ without running into a seg fault
         line = strtok(line, "\n");
         //Skip past whitespace
@@ -71,6 +123,7 @@ void parse_file(char* filename) {
                     }
                     char * targetName = malloc(sizeof (char) *(strlen(line)) + 1);
                     strncpy(targetName, line, strlen(line) - 1);
+                    targetName[strlen(line) - 1] = '\0';
                     //Initialize next TARGET variable
                     TARGET* tar = (TARGET*) malloc(sizeof (TARGET));
                     tar->name = targetName;
@@ -103,19 +156,21 @@ void parse_file(char* filename) {
                     } else //Read in a command and add it to the linked list in correct order
                     {
                         COMMAND* com = (COMMAND*) malloc(sizeof (COMMAND));
-                        char * command_str = malloc(sizeof (char) *(strlen(line) + 1));
+                        char * command_str = malloc(sizeof(char) * (strlen(line) + 1));
 
                         //Encode the commas in quotes
                         comma_in_quote_encode(line);
                        
-												//Break up line by commas
+						//Break up line by commas
                         line = strtok(line, ",");
                         strcpy(command_str, line);
                         comma_in_quote_decode(command_str);
 
                         com->str = command_str;
+                        com->concurrent = NULL;
+                        com->next = NULL;
 
-												//Create list of concurrent commands
+						//Create list of concurrent commands
                         line = strtok(NULL, ",");
                         COMMAND* concurrent_place = com;
                         while (line != NULL) {
@@ -198,7 +253,7 @@ void comma_in_quote_decode(char * line)
         j++;
     }
 }
-//Safely executes a program by creating a branch first
+//Safely executes a command by creating a branch first
 void fexecvp(const char* path, char* const argv[]) {
     pid_t child_pid;
     child_pid = fork();
@@ -213,6 +268,13 @@ void fexecvp(const char* path, char* const argv[]) {
 //Runs the commands of a Dimefile target, giving priority to commands on the
 //same line
 void run_target(TARGET * cur_target, bool execute) {
+    if (logging)
+    {
+        int len = strlen(target_log) + strlen(cur_target->name) + 2;
+        char message[len];
+        sprintf(message, "%s%s\n", target_log, cur_target->name);
+        write_log(message);
+    }
     COMMAND * com = cur_target->commands;
     while (com != NULL) {
         COMMAND * cur_command = com;
@@ -229,6 +291,13 @@ void run_target(TARGET * cur_target, bool execute) {
 //Breaks up the arguments of a command and executes or displays them, 
 //depending on user input
 void run_command(COMMAND * com, bool execute) {
+    if (logging)
+    {
+        int len = strlen(command_log) + strlen(com->str) + 2;
+        char message[len];
+        sprintf(message, "%s%s\n", command_log, com->str);
+        write_log(message);
+    }
 	char * com_part = strtok(com->str, " ");
 	int numTokens = maxTokens + 1;
 	char * com_list[maxTokens + 1];
@@ -383,7 +452,7 @@ int main(int argc, char* argv[]) {
     extern int optind;
     extern char* optarg;
     int ch;
-    char* format = "f:hn";
+    char* format = "f:hnal::L::";
 
     // Variables you'll want to use
     char* filename = "Dimefile";
@@ -393,34 +462,76 @@ int main(int argc, char* argv[]) {
     while ((ch = getopt(argc, argv, format)) != -1) {
         switch (ch) {
             case 'f':
-                filename = optarg;
-                break;
+               filename = optarg;
+               break;
             case 'n':
-                execute = false;
-                break;
+               execute = false;
+               break;
             case 'h':
-                dime_usage(argv[0]);
+               dime_usage(argv[0]);
+               break;
+            case 'a':
+            	execute_all = true;
+            	break;
+           	case 'l':
+           	    logging = true;
+           	    if (optarg != NULL)
+           	    {
+           	        logfile = optarg;
+           	    }
+           	    else
+           	    {
+           	        logfile = default_log;
+           	    }
+           	    break;
+           	case 'L':
+           	    logging = true;
+           	    if (optarg != NULL)
+           	    {
+           	        logfile = optarg;
+           	    }
+           	    else
+           	    {
+           	        logfile = default_log;
+           	    }
+           	    reset_log();
+           	    break;
+           	case '?':
+           	    if (optopt == 'f')
+           	    {
+           	        error("Specify a file to read instruction from after -f.");
+           	    }
+                else
+                {
+                    int len = strlen("Unknown option character ");
+                    char message[len + 3];
+                    sprintf(message, "Unknown option character %c.", optopt);
+                    error(message);
+                }
                 break;
+           	default:
+           	    dime_usage(argv[0]);
+           	    break;
         }
     }
     //Get rid of ./dime as the first argument
     argc -= optind;
     argv += optind;
+    if (logging)
+    {
+        write_log(current_time());
+    }
 
     parse_file(filename);
 
-
     //Find target
     TARGET * cur_target = first;
-    if (argc == 0) {
-        while (cur_target->next != NULL)
-            cur_target = cur_target->next;
-    } else if (argc == 1) {
+    if (argc == 1) {
         cur_target = find_target(argv[0]);
         if (cur_target == NULL) {
             error("Target specified is not in Dimefile\n");
         }
-    } else {
+    } else if (argc > 1) {
         error("Argument structure not correct");
     }
 
@@ -438,11 +549,12 @@ int main(int argc, char* argv[]) {
             cur_depend = cur_depend->next;
         }
         run_target(cur_target, execute);
-
     }
     
     //Recursively delete all allocated variables
     clean_target(first);
+
+    write_log("Three");
 
     return 0;
 }

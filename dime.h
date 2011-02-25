@@ -34,8 +34,18 @@ typedef struct target
 TARGET* first;
 //80 is the maximum number of tokens a 160-character line can have
 int maxTokens = 80;
+bool execute_all = false;
+bool logging = false;
+char* default_log = "dime.log";
+const char* logfile;
+char* command_log = "EXECUTING COMMAND  |  ";
+char* target_log =  "EXECUTING TARGET   |  ";
 
 void error(char* message);
+void reset_log();
+void write_log(char* message);
+void lprintf(char* message);
+char* current_time();
 void dime_usage(char*);
 void parse_file(char*);
 void comma_in_quote_encode(char * line);
