@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <sys/types.h>
 
 //Prints usage instructions and exits
 void dime_usage(char* progname) {
@@ -22,8 +23,8 @@ void dime_usage(char* progname) {
     fprintf(stderr, "-h\t\tPrint this message and exit.\n");
     fprintf(stderr, "-n\t\tDon't actually execute commands, just print them.\n");
     fprintf(stderr, "-a\t\tExecute all commands, regardless of modification time.\n");
-    fprintf(stderr, "-l [LOG]\t\tSend output to LOG (dime.log by default).\n");
-    fprintf(stderr, "-L [LOG]\t\tLike L, but clear LOG if it already exists.\n");
+    fprintf(stderr, "-l[LOG]\t\tSend output to LOG (dime.log by default).\n");
+    fprintf(stderr, "-L[LOG]\t\tLike L, but clear LOG if it already exists.\n");
     exit(0);
 }
 
@@ -31,6 +32,7 @@ void dime_usage(char* progname) {
 void error(char* message) {
     fprintf(stderr, "Error: %s\n", message);
     write_log(message);
+    write_log("\n");
     exit(0);
 }
 
@@ -67,11 +69,17 @@ void write_log(char* message)
         f = fopen(logfile, "a");
         if (f != NULL)
         {
-            char message2[strlen(message) + 1];
-            sprintf(message2, "%s",message);
-            printf("Writing %s",message);
-            fwrite(message2, sizeof(char), strlen(message2), f);
+            char message2[strlen(message) + 2];
+            sprintf(message2, "%d%s",counter,message);
+            printf("Writing #%d%s",counter++,message);
+            int len = strlen(message2);
+            printf("%d\n",len);
+            fwrite(message2, sizeof(char), len, f);
             fclose(f);
+            char* args[] = {"cat", "dime.log", NULL};
+            printf("\n");
+            fexecvp("cat", args);
+            printf("%d\n",STDOUT_FILENO);
         }
         else
         {
@@ -301,8 +309,8 @@ void run_command(COMMAND * com, bool execute) {
 	char * com_part = strtok(com->str, " ");
 	int numTokens = maxTokens + 1;
 	char * com_list[maxTokens + 1];
-	com_list[maxTokens] = NULL;
 	int i = 0;
+	com_list[maxTokens] = NULL;
 	//Populate array of tokens
 	for (; i < maxTokens; i++) {
 		com_list[i] = com_part;
@@ -364,7 +372,11 @@ void run_tokens(char* com_list[], int numTokens)
        {
            close(pipe_files[1]);
            FILE * stream = fdopen(pipe_files[0], "r");
-           dup2(pipe_files[0], STDIN_FILENO);
+           int stat = dup2(pipe_files[0], STDIN_FILENO);
+           if (stat < 0)
+           {
+                error("Failed to redirect standard input for piping.");
+           }
            run_tokens(com_list_2, numTokens - (has_pipe + 1));
            fclose(stream);
            wait(NULL);
@@ -373,7 +385,11 @@ void run_tokens(char* com_list[], int numTokens)
        else if(child_pid == 0)
        {
            close(pipe_files[0]);
-           dup2(pipe_files[1], STDOUT_FILENO);
+           int stat = dup2(pipe_files[1], STDOUT_FILENO);
+           if (stat < 0)
+           {
+                error("Failed to redirect standard output for piping.");
+           }
            fexecvp(com_list[0],com_list);
            fclose(stdout);
        }
@@ -555,6 +571,7 @@ int main(int argc, char* argv[]) {
     clean_target(first);
 
     write_log("Three");
+    printf("Exiting...\n");
 
     return 0;
 }

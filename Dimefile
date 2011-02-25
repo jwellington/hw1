@@ -1,6 +1,6 @@
 # this is the Dimefile to give an example of what you should be able
 # to handle
 funnier: funny.txt {
-         cat funny.txt
          cat funny.txt | sed s/funny/funnier/g | sort
+         cat funny.txt
 }
