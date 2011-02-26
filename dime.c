@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 //Prints usage instructions and exits
 void dime_usage(char* progname) {
@@ -222,7 +223,7 @@ void parse_file(char* filename) {
 void comma_in_quote_encode(char * line)
 {
     bool inQuotes = false;
- 		int j = 0;
+    int j = 0;
     while (line[j] != '\0') {
         if (line[j] == '\'') {
             inQuotes = !inQuotes;
@@ -276,24 +277,26 @@ void fexecvp(const char* path, char* const argv[]) {
 //Runs the commands of a Dimefile target, giving priority to commands on the
 //same line
 void run_target(TARGET * cur_target, bool execute) {
-    if (logging)
+    if (check_dependencies(cur_target) || execute_all)
     {
-        int len = strlen(target_log) + strlen(cur_target->name) + 2;
-        char message[len];
-        sprintf(message, "%s%s\n", target_log, cur_target->name);
-        write_log(message);
-    }
-    COMMAND * com = cur_target->commands;
-    while (com != NULL) {
-        COMMAND * cur_command = com;
-        while (cur_command != NULL)
+        if (logging)
         {
-            run_command(cur_command, execute);
-            cur_command = cur_command->concurrent;
+            int len = strlen(target_log) + strlen(cur_target->name) + 2;
+            char message[len];
+            sprintf(message, "%s%s\n", target_log, cur_target->name);
+            write_log(message);
         }
-        com = com->next;
+        COMMAND * com = cur_target->commands;
+        while (com != NULL) {
+            COMMAND * cur_command = com;
+            while (cur_command != NULL)
+            {
+                run_command(cur_command, execute);
+                cur_command = cur_command->concurrent;
+            }
+            com = com->next;
+        }
     }
-    
 }
 
 //Breaks up the arguments of a command and executes or displays them, 
@@ -461,6 +464,42 @@ void clean_target(TARGET* tar)
 		return;
 	}
 	clean_target(temp);
+}
+
+//Checks if a target is a file. If it is, check if it has any dependencies
+//that have been modified more recently. If it does, or if it is not a file,
+//return true, otherwise, return false.
+int check_dependencies(TARGET* tar)
+{
+    if (is_a_file(tar->name))
+    {
+        if (tar->dependencies == NULL)
+        {
+            return 0;
+        }
+        else
+        {
+            time_t current_time = last_modified(tar->name);
+            DEPENDENCY* dep = tar->dependencies;
+            while (dep != NULL)
+            {
+                if (is_a_file(dep->name))
+                {
+                    time_t mod_time = last_modified(dep->name);
+                    if (difftime(mod_time,current_time) > 0)
+                    {
+                        return 1;
+                    }
+                }
+                dep = dep->next;
+            }
+            return 0;
+        }
+    }
+    else
+    {
+        return 1;
+    }
 }
 
 int main(int argc, char* argv[]) {

@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 /***************
  * These functions are just some handy file functions.
@@ -45,6 +46,41 @@ char* current_time()
     time(&rawtime);
     char* timestring = ctime(&rawtime);
     return timestring;
+}
+
+//Returns a struct tm* representation of the current time.
+time_t get_time()
+{
+    time_t rawtime;
+    time(&rawtime);
+    return rawtime;
+}
+
+//Returns the modification time of the inputted file.
+//You should make sure you give it an actual file.
+time_t last_modified(char* filename)
+{
+    struct tm* timeinfo;
+    struct stat attrib;
+    stat(filename,&attrib);
+    timeinfo = gmtime(&(attrib.st_mtime));
+    time_t ti = mktime(timeinfo);
+    return ti;
+}
+
+//Returns 1 if the inputted string is a valid filename, 0 otherwise.
+int is_a_file(char* filename)
+{
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0)
+    {
+        return 0;
+    }
+    else
+    {
+        close(fd);
+        return 1;
+    }
 }
 
 //Returns a string that is the concatenation of strings a and b.

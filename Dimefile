@@ -4,3 +4,8 @@ funnier: funny.txt {
          cat funny.txt | sed s/funny/funnier/g | sort
          cat funny.txt
 }
+
+timefile.txt: earlier.txt {
+         echo Look at the time!
+         touch timefile.txt
+}

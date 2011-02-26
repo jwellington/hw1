@@ -33,7 +33,7 @@ typedef struct target
 
 TARGET* first;
 //80 is the maximum number of tokens a 160-character line can have
-int maxTokens = 80;
+int maxTokens = 512;
 int counter = 0;
 bool execute_all = false;
 bool logging = false;
@@ -46,6 +46,7 @@ void error(char* message);
 void reset_log();
 void write_log(char* message);
 void lprintf(char* message);
+int check_dependencies(TARGET* tar);
 char* current_time();
 void dime_usage(char*);
 void parse_file(char*);
