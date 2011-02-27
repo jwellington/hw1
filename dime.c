@@ -336,6 +336,7 @@ void run_tokens(char* com_list[], int numTokens)
 {
     //Check for pipes
     int has_pipe = -1;
+    int has_redirect = -1;
     int i;
     for(i = 0; i < numTokens; i++)
     {
@@ -343,6 +344,11 @@ void run_tokens(char* com_list[], int numTokens)
        {
            has_pipe = i;
            break;
+       }
+       if(com_list[i] != NULL && (strcmp(com_list[i],">") == 0 || strcmp(com_list[i],"<") == 0))
+       {
+           has_redirect = i;
+           break;	
        }
     }
     //If there is a pipe, set up and populate second list of commands
@@ -388,6 +394,51 @@ void run_tokens(char* com_list[], int numTokens)
            fclose(stdout);
            exit(0);
        }
+    }
+    else if(has_redirect != -1)
+    {
+    	//Seperate commands into two lists
+        char * com_list_2[numTokens - has_pipe];
+        char * redirect_token = com_list[has_redirect];
+        com_list[has_redirect] = NULL;
+        for(i = has_redirect + 1; i < numTokens; i++)
+       	{
+           	com_list_2[i - (has_redirect + 1)] = com_list[i];
+           	com_list[i] = NULL;
+        }
+        com_list_2[numTokens - has_redirect - 1] = NULL;
+		
+		//If output redirection
+		if(redirect_token[0] == '>')
+		{
+       	
+		   	char * filename = com_list_2[0];
+		   	int output_file = open(filename, O_WRONLY);
+		   	if(output_file == -1)
+		   	{
+		   		error("Redirection of output to file failed");
+		   	}
+		   	int stdout_old = dup(STDOUT_FILENO);
+		   	dup2(output_file, STDOUT_FILENO);
+		   	fexecvp(com_list[0], com_list);
+		   	close(output_file);
+		   	dup2(stdout_old, STDOUT_FILENO);
+       	}
+       	//If input redirection
+       	else
+       	{
+       		char * filename = com_list_2[0];
+		   	int input_file = open(filename, O_RDONLY);
+		   	if(input_file == -1)
+		   	{
+		   		error("Redirection of input from file failed");
+		   	}
+		   	int stdin_old = dup(STDIN_FILENO);
+		   	dup2(input_file, STDIN_FILENO);
+		   	fexecvp(com_list[0], com_list);
+		   	close(input_file);
+		   	dup2(stdin_old, STDIN_FILENO);
+       	}        
     }
     else
     {

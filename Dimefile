@@ -1,5 +1,9 @@
 # this is the Dimefile to give an example of what you should be able
 # to handle
+
+testout: {
+	sed s/funny/funniest/g;s/a/the/g < funny.txt
+}
 funnier: funny.txt {
          cat funny.txt | sed s/funny/funnier/g | sort
          cat funny.txt
