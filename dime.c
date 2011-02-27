@@ -70,17 +70,8 @@ void write_log(char* message)
         f = fopen(logfile, "a");
         if (f != NULL)
         {
-            char message2[strlen(message) + 2];
-            sprintf(message2, "%d%s",counter,message);
-            printf("Writing #%d%s",counter++,message);
-            int len = strlen(message2);
-            printf("%d\n",len);
-            fwrite(message2, sizeof(char), len, f);
+            fwrite(message, sizeof(char), strlen(message), f);
             fclose(f);
-            char* args[] = {"cat", "dime.log", NULL};
-            printf("\n");
-            fexecvp("cat", args);
-            printf("%d\n",STDOUT_FILENO);
         }
         else
         {
@@ -395,6 +386,7 @@ void run_tokens(char* com_list[], int numTokens)
            }
            fexecvp(com_list[0],com_list);
            fclose(stdout);
+           exit(0);
        }
     }
     else
@@ -608,9 +600,7 @@ int main(int argc, char* argv[]) {
     
     //Recursively delete all allocated variables
     clean_target(first);
-
-    write_log("Three");
-    printf("Exiting...\n");
+    write_log("\n");
 
     return 0;
 }
