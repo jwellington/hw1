@@ -267,7 +267,8 @@ void fexecvp(const char* path, char* const argv[]) {
 
 //Runs the commands of a Dimefile target, giving priority to commands on the
 //same line
-void run_target(TARGET * cur_target, bool execute) {
+void run_target(TARGET * cur_target, char* previous_dependencies[],
+                int depc, bool execute) {
     if (check_dependencies(cur_target) || execute_all)
     {
         //Log message if logging is enabled
@@ -284,7 +285,23 @@ void run_target(TARGET * cur_target, bool execute) {
         while (cur_depend != NULL) {
             depend_target = find_target(cur_depend->name);
             if (depend_target != NULL)
-                run_target(depend_target, true);
+            {
+                if (!check_circular_dependencies(cur_depend,
+                                                 previous_dependencies,
+                                                 depc,
+                                                 cur_target))
+                {
+                    char* next_dependencies[depc+1];
+                    int j;
+                    for (j = 0; j < depc; j++)
+                    {
+                        next_dependencies[j] = previous_dependencies[j];
+                    }
+                    next_dependencies[depc] = cur_target->name;
+                    run_target(depend_target, next_dependencies, depc+1, 
+                                execute);
+                }
+            }
             cur_depend = cur_depend->next;
         }
         //Load list of commands and run them
@@ -556,6 +573,42 @@ int check_dependencies(TARGET* tar)
     }
 }
 
+//Checks if dep is in the list of previous dependencies (i.e. if calling_target
+//has a circular dependencies). If yes, returns true and prints/logs an error
+//message. Otherwise, returns false.
+int check_circular_dependencies(DEPENDENCY* dep, 
+                                char* dependencies[], 
+                                int depc,
+                                TARGET* calling_target)
+{
+    TARGET* tar = find_target(dep->name);
+    int i;
+    if (tar != NULL)
+    {
+        for (i = 0; i < depc; i++)
+        {
+            if (strcmp(dependencies[i],dep->name) == 0)
+            {
+                char message[strlen(info_log)
+                             + strlen("Circular dependency  ->  dropped.\n")
+                             + strlen(dependencies[i])
+                             + strlen(dep->name) + 1];
+                sprintf(message, "%sCircular dependency %s -> %s dropped.\n",
+                        info_log,calling_target->name,dep->name);
+                printf("Circular dependency %s -> %s drooped.\n",
+                        calling_target->name,dep->name);
+                write_log(message);
+                return 1;
+            }
+        }
+        return 0;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 int main(int argc, char* argv[]) {
     // Declarations for getopt
     extern int optind;
@@ -670,9 +723,9 @@ int main(int argc, char* argv[]) {
     }
     for (i = 0; i < num_targets; i++)
     {
-        run_target(targets[i], execute);
+        char* deps[] = {};
+        run_target(targets[i], deps, 0, execute);
     }
-    
     //Recursively delete all allocated variables
     clean_target(first);
     write_log("\n");

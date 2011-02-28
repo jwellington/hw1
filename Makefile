@@ -6,3 +6,9 @@ test: dime
 
 clean:
 	rm -f dime
+
+infiniteloop1: infiniteloop2
+	echo This will never end.
+
+infiniteloop2: infiniteloop1
+	echo This will never end?

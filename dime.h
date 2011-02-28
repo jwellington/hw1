@@ -40,19 +40,25 @@ char* default_log = "dime.log";
 const char* logfile;
 char* command_log = "EXECUTING COMMAND  |  ";
 char* target_log =  "EXECUTING TARGET   |  ";
+char* info_log =    "INFO               |  ";
 
 void error(char* message);
 void reset_log();
 void write_log(char* message);
 void lprintf(char* message);
 int check_dependencies(TARGET* tar);
+int check_circular_dependencies(DEPENDENCY* dep, 
+                                char* dependencies[], 
+                                int depc,
+                                TARGET* calling_target);
 char* current_time();
 void dime_usage(char*);
 void parse_file(char*);
 void comma_in_quote_encode(char * line);
 void comma_in_quote_decode(char * line);
 void fexecvp(const char* path, char* const argv[]);
-void run_target(TARGET * cur_target, bool execute);
+void run_target(TARGET * cur_target, char* previous_dependencies[],
+                int depc, bool execute);
 void run_command(COMMAND * com, bool execute);
 void run_tokens(char* com_list[], int numTokens);
 void clean_target(TARGET* tar);
