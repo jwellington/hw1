@@ -622,31 +622,58 @@ int main(int argc, char* argv[]) {
 
     parse_file(filename);
 
-    //Find target
+    //Find all targets given on the command line
     TARGET * cur_target = first;
-    if (argc == 1) {
-        cur_target = find_target(argv[0]);
-        if (cur_target == NULL) {
-            error("Target specified is not in Dimefile\n");
+    int i;
+    int num_targets = 0;
+    for (i = 0; i < argc; i++)
+    {
+        cur_target = find_target(argv[i]);
+        if (cur_target == NULL)
+        {
+            char message[strlen("Target  is not in Dimefile\n") +
+                strlen(argv[i]) + 1];
+            sprintf(message, "Target %s is not in Dimefile\n", argv[i]);
+            lprintf(message);
         }
-    } else if (argc > 1) {
-        error("Argument structure not correct");
+        else
+        {
+            num_targets++;
+        }
+    }
+    TARGET* targets[num_targets];
+    int targets_index = 0;
+    for (i = 0; i < argc; i++)
+    {
+        cur_target = find_target(argv[i]);
+        if (cur_target != NULL)
+        {
+            targets[targets_index] = cur_target;
+            targets_index++;
+        }
     }
 
     //Take care of dependencies and execute
     if (!execute) {
         printf("Commands are: ");
-        run_target(cur_target, execute);
-    } else {
-        DEPENDENCY * cur_depend = cur_target->dependencies;
-        TARGET * depend_target;
-        while (cur_depend != NULL) {
-            depend_target = find_target(cur_depend->name);
-            if (depend_target != NULL)
-                run_target(depend_target, true);
-            cur_depend = cur_depend->next;
+        for (i = 0; i < num_targets; i++)
+        {
+            run_target(targets[i], execute);
         }
-        run_target(cur_target, execute);
+    } else {
+        for (i = 0; i < num_targets; i++)
+        {
+            cur_target = targets[i];
+            DEPENDENCY * cur_depend = cur_target->dependencies;
+            TARGET * depend_target;
+            while (cur_depend != NULL) {
+                depend_target = find_target(cur_depend->name);
+                if (depend_target != NULL)
+                    run_target(depend_target, true);
+                cur_depend = cur_depend->next;
+            }
+            run_target(cur_target, execute);
+        }
     }
     
     //Recursively delete all allocated variables
