@@ -526,22 +526,21 @@ void clean_dependency(DEPENDENCY* dep)
 //Tail recursively deletes a TARGET variable and all its subvariables
 void clean_target(TARGET* tar)
 {
-	if (tar->dependencies != NULL)
-	{
-		clean_dependency(tar->dependencies);
+    if (tar != NULL)
+    {
+	    if (tar->dependencies != NULL)
+	    {
+		    clean_dependency(tar->dependencies);
+	    }
+	    if (tar->commands != NULL)
+	    {
+		    clean_command(tar->commands);
+	    }
+	    TARGET* temp = tar->next;
+	    free(tar->name);
+	    free(tar);
+	    clean_target(temp);
 	}
-	if (tar->commands != NULL)
-	{
-		clean_command(tar->commands);
-	}
-	TARGET* temp = tar->next;
-	free(tar->name);
-	free(tar);
-	if (temp == NULL)
-	{
-		return;
-	}
-	clean_target(temp);
 }
 
 //Checks if a target is a file. If it is, check if it has any dependencies
