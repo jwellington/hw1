@@ -270,6 +270,7 @@ void fexecvp(const char* path, char* const argv[]) {
 void run_target(TARGET * cur_target, bool execute) {
     if (check_dependencies(cur_target) || execute_all)
     {
+        //Log message if logging is enabled
         if (logging)
         {
             int len = strlen(target_log) + strlen(cur_target->name) + 2;
@@ -277,6 +278,16 @@ void run_target(TARGET * cur_target, bool execute) {
             sprintf(message, "%s%s\n", target_log, cur_target->name);
             write_log(message);
         }
+        //Take care of dependencies and execute
+        DEPENDENCY * cur_depend = cur_target->dependencies;
+        TARGET * depend_target;
+        while (cur_depend != NULL) {
+            depend_target = find_target(cur_depend->name);
+            if (depend_target != NULL)
+                run_target(depend_target, true);
+            cur_depend = cur_depend->next;
+        }
+        //Load list of commands and run them
         COMMAND * com = cur_target->commands;
         while (com != NULL) {
             COMMAND * cur_command = com;
@@ -653,27 +664,13 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    //Take care of dependencies and execute
+    //Run targets
     if (!execute) {
-        printf("Commands are: ");
-        for (i = 0; i < num_targets; i++)
-        {
-            run_target(targets[i], execute);
-        }
-    } else {
-        for (i = 0; i < num_targets; i++)
-        {
-            cur_target = targets[i];
-            DEPENDENCY * cur_depend = cur_target->dependencies;
-            TARGET * depend_target;
-            while (cur_depend != NULL) {
-                depend_target = find_target(cur_depend->name);
-                if (depend_target != NULL)
-                    run_target(depend_target, true);
-                cur_depend = cur_depend->next;
-            }
-            run_target(cur_target, execute);
-        }
+        printf("Commands are: \n");
+    }
+    for (i = 0; i < num_targets; i++)
+    {
+        run_target(targets[i], execute);
     }
     
     //Recursively delete all allocated variables

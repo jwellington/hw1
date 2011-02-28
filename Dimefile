@@ -4,12 +4,29 @@
 testout: {
 	sed s/funny/funniest/g;s/a/the/g < funny.txt
 }
-funnier: funny.txt {
+
+funnier: makefunny funny.txt {
          cat funny.txt | sed s/funny/funnier/g | sort
          cat funny.txt
+}
+
+makefunny: otherdep {
+        echo I made a funny!
+}
+
+otherdep: {
+        echo Dont forget me!
 }
 
 timefile.txt: earlier.txt {
          echo Look at the time!
          touch timefile.txt
+}
+
+infiniteloop1: infiniteloop2 {
+        echo This will never end.
+}
+
+infiniteloop2: infiniteloop1 {
+        echo This will never end?
 }
