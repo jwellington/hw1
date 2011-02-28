@@ -33,14 +33,8 @@ typedef struct target
 
 TARGET* first;
 //80 is the maximum number of tokens a 160-character line can have
-int maxTokens = 512;
-bool execute_all = false;
 bool logging = false;
-char* default_log = "dime.log";
 const char* logfile;
-char* command_log = "EXECUTING COMMAND  |  ";
-char* target_log =  "EXECUTING TARGET   |  ";
-char* info_log =    "INFO               |  ";
 
 void error(char* message);
 void reset_log();
@@ -58,7 +52,7 @@ void comma_in_quote_encode(char * line);
 void comma_in_quote_decode(char * line);
 void fexecvp(const char* path, char* const argv[]);
 void run_target(TARGET * cur_target, char* previous_dependencies[],
-                int depc, bool execute);
+                int depc, bool execute, bool execute_all);
 void run_command(COMMAND * com, bool execute);
 void run_tokens(char* com_list[], int numTokens);
 void clean_target(TARGET* tar);

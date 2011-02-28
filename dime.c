@@ -17,6 +17,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+//Constant variable declarations
+const int maxTokens = 512;
+const char* default_log = "dime.log";
+const char* command_log = "EXECUTING COMMAND  |  ";
+const char* target_log =  "EXECUTING TARGET   |  ";
+const char* info_log =    "INFO               |  ";
+
 //Prints usage instructions and exits
 void dime_usage(char* progname) {
     fprintf(stderr, "Usage: %s [options] [target]\n", progname);
@@ -268,7 +275,7 @@ void fexecvp(const char* path, char* const argv[]) {
 //Runs the commands of a Dimefile target, giving priority to commands on the
 //same line
 void run_target(TARGET * cur_target, char* previous_dependencies[],
-                int depc, bool execute) {
+                int depc, bool execute, bool execute_all) {
     if (check_dependencies(cur_target) || execute_all)
     {
         //Log message if logging is enabled
@@ -299,7 +306,7 @@ void run_target(TARGET * cur_target, char* previous_dependencies[],
                     }
                     next_dependencies[depc] = cur_target->name;
                     run_target(depend_target, next_dependencies, depc+1, 
-                                execute);
+                                execute, execute_all);
                 }
             }
             cur_depend = cur_depend->next;
@@ -619,6 +626,7 @@ int main(int argc, char* argv[]) {
     // Variables you'll want to use
     char* filename = "Dimefile";
     bool execute = true;
+    bool execute_all = false;
 
     // Part 2.2.1: Use getopt code to take input appropriately.
     while ((ch = getopt(argc, argv, format)) != -1) {
@@ -687,45 +695,65 @@ int main(int argc, char* argv[]) {
     parse_file(filename);
 
     //Find all targets given on the command line
-    TARGET * cur_target = first;
-    int i;
-    int num_targets = 0;
-    for (i = 0; i < argc; i++)
+    TARGET * cur_target;
+    if (argc == 0)
     {
-        cur_target = find_target(argv[i]);
-        if (cur_target == NULL)
+        if (first != NULL)
         {
-            char message[strlen("Target  is not in Dimefile\n") +
-                strlen(argv[i]) + 1];
-            sprintf(message, "Target %s is not in Dimefile\n", argv[i]);
-            lprintf(message);
-        }
-        else
-        {
-            num_targets++;
+            TARGET* last = first;
+            while (last->next != NULL)
+            {
+                last = last->next;
+            }
+            if (!execute) {
+                printf("Commands are: \n");
+            }
+            char* deps[] = {};
+            run_target(last, deps, 0, execute, execute_all);
         }
     }
-    TARGET* targets[num_targets];
-    int targets_index = 0;
-    for (i = 0; i < argc; i++)
+    else
     {
-        cur_target = find_target(argv[i]);
-        if (cur_target != NULL)
+        int i;
+        int num_targets = 0;
+        for (i = 0; i < argc; i++)
         {
-            targets[targets_index] = cur_target;
-            targets_index++;
+            cur_target = find_target(argv[i]);
+            if (cur_target == NULL)
+            {
+                char message[strlen("Target  is not in Dimefile\n") +
+                    strlen(argv[i]) + 1];
+                sprintf(message, "Target %s is not in Dimefile\n", argv[i]);
+                lprintf(message);
+            }
+            else
+            {
+                num_targets++;
+            }
         }
-    }
+        TARGET* targets[num_targets];
+        int targets_index = 0;
+        for (i = 0; i < argc; i++)
+        {
+            cur_target = find_target(argv[i]);
+            if (cur_target != NULL)
+            {
+                targets[targets_index] = cur_target;
+                targets_index++;
+            }
+        }
 
-    //Run targets
-    if (!execute) {
-        printf("Commands are: \n");
+        //Run targets
+        if (!execute) {
+            printf("Commands are: \n");
+        }
+        for (i = 0; i < num_targets; i++)
+        {
+            char* deps[] = {};
+            run_target(targets[i], deps, 0, execute, execute_all);
+        }
     }
-    for (i = 0; i < num_targets; i++)
-    {
-        char* deps[] = {};
-        run_target(targets[i], deps, 0, execute);
-    }
+    
     //Recursively delete all allocated variables
     clean_target(first);
     write_log("\n");

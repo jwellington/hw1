@@ -30,3 +30,6 @@ infiniteloop1: infiniteloop2 {
 infiniteloop2: infiniteloop1 {
         echo This will never end?
 }
+
+all: infiniteloop1 funnier testout timefile.txt {
+}
