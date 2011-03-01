@@ -44,7 +44,7 @@ infiniteloop2: infiniteloop1 {
 }
 
 all: infiniteloop1 funnier testout testin timefile.txt funnier crazy {
-    touch earlier.txt
+    touch earlier.txt, echo Dimeing all
 }
 
 clean: {

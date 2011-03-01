@@ -6,4 +6,34 @@ Jacob Wellington
 3664486
 welli037
 
-The purpose of this assignment is to write a simplified version of the make command (called dime). Like make, dime will allow for rapid compilation of a project via instructions stored in a Dimefile.
+The purpose of this assignment is to write a simplified version of the make command (called dime). Like make, dime will allow for rapid compilation of a project via instructions stored in a Dimefile. Some usage instructions:
+
+* To use dime, first compile it by running make. This is the only time you will need to run make.
+
+* By default, dime looks for an instruction file called dimefile, but this can be changed (see command line options)
+
+* The command line syntax is ./dime [options] [targets]. Targets consists of the names of zero or more targets in the Dimefile to be executed. If no targets are specified, the first one will be executed.
+
+* The command line options are:
+    -f filename
+        Use filename instead of Dimefile as the instruction file.
+    -n
+        Only print the commands that would be executed and do not run them.
+    -a
+        Executes all targets, ignoring file modification times.
+    -l[logfile]
+        Write commands and targets executed, error messages, and other information to logfile, which by default is dime.log if no logfile is given.
+    -L[logfile]
+        Like -l, but clears logfile before writing anything to it.
+    -h
+        Displays help and usage information.
+
+* Refer to the sample Dimefile for examples of the format. Begin comment lines with a pound symbol #. Target lines have the target name, ended with a colon, then the list of the target's dependencies separated by spaces. The line should be ended by an open bracket {. After this, list the commands to be executed in order, followed by a line containing a close bracket }.
+
+* dime executes targets by first checking their dependencies and executing them before executing the commands in the target. If a target is a file that has other files as dependencies, the target will only be executed if any of these files have been modified more recently than the target. (This behavior can be disabled, see command-line arguments above).
+
+* The redirection symbols >, <, and | all work as expected. Multiple commands can also be places on the same line, separated by commas, and will all be executed before the next line.
+
+* Duplicate dependencies of the same target and circular dependencies are dropped when they would be executed.
+
+* dime does not like having apostrophes and quotes in commands.

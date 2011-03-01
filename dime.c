@@ -284,7 +284,7 @@ void run_target(TARGET * cur_target, char* previous_dependencies[],
         sprintf(message, "%s%s\n", target_log, cur_target->name);
         write_log(message);
         //Drop duplicate dependencies
-        check_duplicate_dependencies(cur_target);
+        check_duplicate_dependencies(cur_target, vh);
         //Take care of dependencies and execute
         DEPENDENCY * cur_depend = cur_target->dependencies;
         TARGET * depend_target;
@@ -582,7 +582,7 @@ int check_dependencies(TARGET* tar)
     }
 }
 
-void check_duplicate_dependencies(TARGET* cur_target)
+void check_duplicate_dependencies(TARGET* cur_target, VARHOLDER* vh)
 {
     DEPENDENCY* other_dep = cur_target->dependencies;
     if (other_dep != NULL &&other_dep->next != NULL)
@@ -595,8 +595,18 @@ void check_duplicate_dependencies(TARGET* cur_target)
             {
                 if (strcmp(other_dep->name,check_dep->name) == 0)
                 {
-                    printf("Duplicate dependency %s -> %s dropped.\n",
-                           cur_target->name, check_dep->name);
+                    char message[strlen(info_log)
+                                + strlen("Duplicate dependency  ->  dropped.\n")
+                                + strlen(cur_target->name)
+                                + strlen(check_dep->name) + 1];
+                    sprintf(message,"%sDuplicate dependency %s -> %s dropped.\n",
+                                info_log, cur_target->name, check_dep->name);
+                    write_log(message);
+                    if (vh->execute)
+                    {
+                        printf("Duplicate dependency %s -> %s dropped.\n",
+                                cur_target->name, check_dep->name);
+                    }
                     //Is the first target a duplicate?
                     if (other_dep == cur_target->dependencies)
                     {
@@ -651,9 +661,12 @@ int check_circular_dependencies(DEPENDENCY* dep,
                              + strlen(dep->name) + 1];
                 sprintf(message, "%sCircular dependency %s -> %s dropped.\n",
                         info_log,calling_target->name,dep->name);
-                printf("Circular dependency %s -> %s dropped.\n",
-                        calling_target->name,dep->name);
                 write_log(message);
+                if (vh->execute)
+                {
+                    printf("Circular dependency %s -> %s dropped.\n",
+                            calling_target->name,dep->name);
+                }
                 return 1;
             }
         }
