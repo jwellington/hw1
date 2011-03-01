@@ -5,31 +5,48 @@ testout: {
 	sed s/funny/funniest/g;s/a/the/g < funny.txt
 }
 
-funnier: makefunny funny.txt {
-         cat funny.txt | sed s/funny/funnier/g | sort
-         cat funny.txt
+testin: {
+    cat funny.txt > funnycopy.txt
+}
+
+funnier: makefunny makefunny funny.txt {
+    cat funny.txt | sed s/funny/funnier/g | sort
+    cat funny.txt
+}
+
+funny.txt: {
+    echo This is a funny file! > funny.txt
 }
 
 makefunny: otherdep {
-        echo I made a funny!
+    echo I made a funny!
 }
 
-otherdep: {
-        echo Dont forget me!
+otherdep: funnier {
+    echo Dont forget me!
 }
 
 timefile.txt: earlier.txt {
-         echo Look at the time!
-         touch timefile.txt
+    echo Look at the time!
+    touch timefile.txt
+}
+
+crazy: funny.txt infiniteloop1 infiniteloop2 {
+    tac funny.txt | rev
 }
 
 infiniteloop1: infiniteloop2 {
-        echo This will never end.
+    echo This will never end.
 }
 
 infiniteloop2: infiniteloop1 {
-        echo This will never end?
+    echo This will never end?
 }
 
-all: infiniteloop1 funnier testout timefile.txt {
+all: infiniteloop1 funnier testout testin timefile.txt funnier crazy {
+    touch earlier.txt
+}
+
+clean: {
+    rm funny.txt, rm funnycopy.txt
 }

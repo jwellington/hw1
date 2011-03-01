@@ -27,6 +27,7 @@ const char* default_log = "dime.log";
 const char* command_log = "EXECUTING COMMAND  |  ";
 const char* target_log =  "EXECUTING TARGET   |  ";
 const char* info_log =    "INFO               |  ";
+const mode_t def_mode = S_IRUSR | S_IWUSR;
 
 //Prints usage instructions and exits
 void dime_usage(char* progname) {
@@ -85,20 +86,19 @@ TARGET* find_target(char * target_name, VARHOLDER* vh) {
     return cur_target;
 }
 
-/****************************** 
- * this is the function that, when given a proper filename, will
- * parse the dimefile and read in the rules
- ***************/
+//Given a filename, parses the file and builds the data structures
 //Returns a pointer to the first (last in the file) target
 TARGET* parse_file(char* filename) {
     char* line2 = malloc(160 * sizeof (char));
     FILE* fp = file_open(filename);
-    int level = 0; //0 = outside a target, 1 = reading inside braces of a target
+    //level = 0 outside a target, 1 reading inside braces of a target
+    int level = 0;
     TARGET* first = NULL;
     COMMAND* currentCommand = NULL;
     while ((line2 = file_getline(line2, fp)) != NULL) {
         //Get rid of newline
-        char * line = line2; //allows us to do line++ without running into a seg fault
+        //allows us to do line++ without running into a seg fault
+        char * line = line2;
         line = strtok(line, "\n");
         //Skip past whitespace
         if (line != NULL) {
@@ -116,7 +116,7 @@ TARGET* parse_file(char* filename) {
                     if (line[strlen(line) - 1] != ':') {
                         error("Dime target names must be followed by a colon.");
                     }
-                    char * targetName = malloc(sizeof (char) *(strlen(line)) + 1);
+                    char * targetName = malloc(sizeof (char) * strlen(line) + 1);
                     strncpy(targetName, line, strlen(line) - 1);
                     targetName[strlen(line) - 1] = '\0';
                     //Initialize next TARGET variable
@@ -125,15 +125,25 @@ TARGET* parse_file(char* filename) {
                     tar->next = first;
                     first = tar;
                     tar->dependencies = NULL;
+                    DEPENDENCY* current_dep = tar->dependencies;
                     word = strtok(NULL, " \t");
                     //Create linked list of dependencies
                     while (word != NULL && *word != '{') {
-                        DEPENDENCY* dep = (DEPENDENCY*) malloc(sizeof (DEPENDENCY));
-                        char * dep_name = malloc(sizeof (char) *160);
+                        char * dep_name = malloc(sizeof (char) * strlen(word) + 1);
                         strcpy(dep_name, word);
+                        DEPENDENCY* dep = (DEPENDENCY*) malloc(sizeof (DEPENDENCY));
                         dep->name = dep_name;
-                        dep->next = tar->dependencies;
-                        tar->dependencies = dep;
+                        dep->next = NULL;
+                        if (current_dep != NULL)
+                        {
+                            current_dep->next = dep;
+                            current_dep = dep;
+                        }
+                        else
+                        {
+                            current_dep = dep;
+                            tar->dependencies = dep;
+                        }
                         word = strtok(NULL, " \t");
                     }
                     if (*word != '{') {
@@ -205,8 +215,7 @@ TARGET* parse_file(char* filename) {
     return first;
 }
 
-//Replace commas in quotes with other characters to not
-//mess up the strtok on the comma
+//Replace commas in quotes with newlines to not mess up the strtok on the comma
 void comma_in_quote_encode(char * line)
 {
     bool inQuotes = false;
@@ -238,7 +247,7 @@ void comma_in_quote_encode(char * line)
     }
 }
 
-
+//Puts commas back into the line
 void comma_in_quote_decode(char * line)
 {
     int j = 0;
@@ -266,6 +275,7 @@ void fexecvp(const char* path, char* const argv[]) {
 void run_target(TARGET * cur_target, char* previous_dependencies[],
                 int depc, VARHOLDER* vh) {
     bool execute_all = vh->execute_all;
+    //printf("EXECUTNG TARGET %s\n", cur_target->name);
     if (check_dependencies(cur_target) || execute_all)
     {
         //Log message
@@ -273,6 +283,8 @@ void run_target(TARGET * cur_target, char* previous_dependencies[],
         char message[len];
         sprintf(message, "%s%s\n", target_log, cur_target->name);
         write_log(message);
+        //Drop duplicate dependencies
+        check_duplicate_dependencies(cur_target);
         //Take care of dependencies and execute
         DEPENDENCY * cur_depend = cur_target->dependencies;
         TARGET * depend_target;
@@ -304,6 +316,7 @@ void run_target(TARGET * cur_target, char* previous_dependencies[],
             COMMAND * cur_command = com;
             while (cur_command != NULL)
             {
+                //printf("%s: %s\n", cur_target->name, cur_command->str);
                 run_command(cur_command, vh);
                 cur_command = cur_command->concurrent;
             }
@@ -316,11 +329,15 @@ void run_target(TARGET * cur_target, char* previous_dependencies[],
 //depending on user input
 void run_command(COMMAND * com, VARHOLDER* vh) {
     bool execute = vh->execute;
+    //Prepare log message
     int len = strlen(command_log) + strlen(com->str) + 2;
     char message[len];
     sprintf(message, "%s%s\n", command_log, com->str);
     write_log(message);
-	char * com_part = strtok(com->str, " ");
+    //Copy com->str so strtok doesn't mess with it
+    char com_str[strlen(com->str)+1];
+    strcpy(com_str,com->str);
+	char * com_part = strtok(com_str, " ");
 	int numTokens = maxTokens + 1;
 	char * com_list[maxTokens + 1];
 	int i = 0;
@@ -433,7 +450,8 @@ void run_tokens(char* com_list[], int numTokens)
 		{
        	
 		   	char * filename = com_list_2[0];
-		   	int output_file = open(filename, O_WRONLY);
+		   	int output_file = 
+		   	    open(filename, O_WRONLY | O_CREAT | O_TRUNC, def_mode);
 		   	if(output_file == -1)
 		   	{
 		   		error("Redirection of output to file failed");
@@ -448,7 +466,7 @@ void run_tokens(char* com_list[], int numTokens)
        	else
        	{
        		char * filename = com_list_2[0];
-		   	int input_file = open(filename, O_RDONLY);
+		   	int input_file = open(filename, O_RDONLY, def_mode);
 		   	if(input_file == -1)
 		   	{
 		   		error("Redirection of input from file failed");
@@ -564,6 +582,52 @@ int check_dependencies(TARGET* tar)
     }
 }
 
+void check_duplicate_dependencies(TARGET* cur_target)
+{
+    DEPENDENCY* other_dep = cur_target->dependencies;
+    if (other_dep != NULL &&other_dep->next != NULL)
+    {
+        DEPENDENCY* prev_dep = cur_target->dependencies;
+        DEPENDENCY* check_dep = other_dep->next;
+        while (check_dep != NULL)
+        {
+            while (other_dep != check_dep)
+            {
+                if (strcmp(other_dep->name,check_dep->name) == 0)
+                {
+                    printf("Duplicate dependency %s -> %s dropped.\n",
+                           cur_target->name, check_dep->name);
+                    //Is the first target a duplicate?
+                    if (other_dep == cur_target->dependencies)
+                    {
+                        cur_target->dependencies = other_dep->next;
+                        prev_dep = other_dep->next;
+                        other_dep->next = NULL;
+                        clean_dependency(other_dep);
+                        other_dep = prev_dep;
+                    }
+                    //Or is it a later target?
+                    else
+                    {
+                        prev_dep->next = other_dep->next;
+                        other_dep->next = NULL;
+                        clean_dependency(other_dep);
+                        other_dep = prev_dep->next;
+                    }
+                }
+                else
+                {
+                    prev_dep = other_dep;
+                    other_dep = other_dep->next;
+                }
+            }
+            other_dep = cur_target->dependencies;
+            prev_dep = cur_target->dependencies;
+            check_dep = check_dep->next;
+        }
+    }
+}
+
 //Checks if dep is in the list of previous dependencies (i.e. if calling_target
 //has a circular dependencies). If yes, returns true and prints/logs an error
 //message. Otherwise, returns false.
@@ -587,7 +651,7 @@ int check_circular_dependencies(DEPENDENCY* dep,
                              + strlen(dep->name) + 1];
                 sprintf(message, "%sCircular dependency %s -> %s dropped.\n",
                         info_log,calling_target->name,dep->name);
-                printf("Circular dependency %s -> %s drooped.\n",
+                printf("Circular dependency %s -> %s dropped.\n",
                         calling_target->name,dep->name);
                 write_log(message);
                 return 1;
@@ -710,7 +774,6 @@ int main(int argc, char* argv[]) {
                 printf("Commands are: \n");
             }
             char* deps[] = {};
-            printf("%s\n",first->name);
             run_target(last, deps, 0, &var_holder);
         }
     }

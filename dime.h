@@ -44,6 +44,7 @@ void reset_log();
 void write_log(char* message);
 void lprintf(char* message);
 int check_dependencies(TARGET* tar);
+void check_duplicate_dependencies(TARGET* cur_target);
 int check_circular_dependencies(DEPENDENCY* dep, 
                                 char* dependencies[], 
                                 int depc,
