@@ -17,6 +17,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+extern void initialize(int, const char*);
+extern int write_to_log(char*);
+extern int reset();
+
 //Constant variable declarations
 const int maxTokens = 512;
 const char* default_log = "dime.log";
@@ -54,14 +58,7 @@ void lprintf(char* message)
 //Resets the log to an empty file.
 void reset_log()
 {
-    FILE* f;
-    f = fopen(logfile, "w");
-    if (f != NULL)
-    {
-        fwrite("", sizeof(char), 0, f);
-        fclose(f);
-    }
-    else
+    if (!reset())
     {
         printf("Unable to open logfile for resetting.\n");
         exit(0);
@@ -71,26 +68,16 @@ void reset_log()
 //Writes the message to the log, if logging is enabled.
 void write_log(char* message)
 {
-    if (logging)
+    if (!write_to_log(message))
     {
-        FILE* f;
-        f = fopen(logfile, "a");
-        if (f != NULL)
-        {
-            fwrite(message, sizeof(char), strlen(message), f);
-            fclose(f);
-        }
-        else
-        {
-            printf("Unable to open logfile for writing.\n");
-            exit(0);
-        }
-    } 
+        printf("Unable to open logfile for writing.\n");
+        exit(0);
+    }
 }
 
 //Returns the target target with the given name, or NULL if not found
-TARGET* find_target(char * target_name) {
-    TARGET * cur_target = first;
+TARGET* find_target(char * target_name, VARHOLDER* vh) {
+    TARGET * cur_target = vh->first;
     while (cur_target != NULL && strcmp((cur_target->name), target_name) != 0)
     {
         cur_target = cur_target->next;
@@ -102,11 +89,12 @@ TARGET* find_target(char * target_name) {
  * this is the function that, when given a proper filename, will
  * parse the dimefile and read in the rules
  ***************/
-void parse_file(char* filename) {
+//Returns a pointer to the first (last in the file) target
+TARGET* parse_file(char* filename) {
     char* line2 = malloc(160 * sizeof (char));
     FILE* fp = file_open(filename);
     int level = 0; //0 = outside a target, 1 = reading inside braces of a target
-    first = NULL;
+    TARGET* first = NULL;
     COMMAND* currentCommand = NULL;
     while ((line2 = file_getline(line2, fp)) != NULL) {
         //Get rid of newline
@@ -214,6 +202,7 @@ void parse_file(char* filename) {
     }
     fclose(fp);
     free(line2);
+    return first;
 }
 
 //Replace commas in quotes with other characters to not
@@ -275,28 +264,27 @@ void fexecvp(const char* path, char* const argv[]) {
 //Runs the commands of a Dimefile target, giving priority to commands on the
 //same line
 void run_target(TARGET * cur_target, char* previous_dependencies[],
-                int depc, bool execute, bool execute_all) {
+                int depc, VARHOLDER* vh) {
+    bool execute_all = vh->execute_all;
     if (check_dependencies(cur_target) || execute_all)
     {
-        //Log message if logging is enabled
-        if (logging)
-        {
-            int len = strlen(target_log) + strlen(cur_target->name) + 2;
-            char message[len];
-            sprintf(message, "%s%s\n", target_log, cur_target->name);
-            write_log(message);
-        }
+        //Log message
+        int len = strlen(target_log) + strlen(cur_target->name) + 2;
+        char message[len];
+        sprintf(message, "%s%s\n", target_log, cur_target->name);
+        write_log(message);
         //Take care of dependencies and execute
         DEPENDENCY * cur_depend = cur_target->dependencies;
         TARGET * depend_target;
         while (cur_depend != NULL) {
-            depend_target = find_target(cur_depend->name);
+            depend_target = find_target(cur_depend->name, vh);
             if (depend_target != NULL)
             {
                 if (!check_circular_dependencies(cur_depend,
                                                  previous_dependencies,
                                                  depc,
-                                                 cur_target))
+                                                 cur_target, 
+                                                 vh))
                 {
                     char* next_dependencies[depc+1];
                     int j;
@@ -305,8 +293,7 @@ void run_target(TARGET * cur_target, char* previous_dependencies[],
                         next_dependencies[j] = previous_dependencies[j];
                     }
                     next_dependencies[depc] = cur_target->name;
-                    run_target(depend_target, next_dependencies, depc+1, 
-                                execute, execute_all);
+                    run_target(depend_target, next_dependencies, depc+1, vh);
                 }
             }
             cur_depend = cur_depend->next;
@@ -317,7 +304,7 @@ void run_target(TARGET * cur_target, char* previous_dependencies[],
             COMMAND * cur_command = com;
             while (cur_command != NULL)
             {
-                run_command(cur_command, execute);
+                run_command(cur_command, vh);
                 cur_command = cur_command->concurrent;
             }
             com = com->next;
@@ -327,14 +314,12 @@ void run_target(TARGET * cur_target, char* previous_dependencies[],
 
 //Breaks up the arguments of a command and executes or displays them, 
 //depending on user input
-void run_command(COMMAND * com, bool execute) {
-    if (logging)
-    {
-        int len = strlen(command_log) + strlen(com->str) + 2;
-        char message[len];
-        sprintf(message, "%s%s\n", command_log, com->str);
-        write_log(message);
-    }
+void run_command(COMMAND * com, VARHOLDER* vh) {
+    bool execute = vh->execute;
+    int len = strlen(command_log) + strlen(com->str) + 2;
+    char message[len];
+    sprintf(message, "%s%s\n", command_log, com->str);
+    write_log(message);
 	char * com_part = strtok(com->str, " ");
 	int numTokens = maxTokens + 1;
 	char * com_list[maxTokens + 1];
@@ -585,9 +570,10 @@ int check_dependencies(TARGET* tar)
 int check_circular_dependencies(DEPENDENCY* dep, 
                                 char* dependencies[], 
                                 int depc,
-                                TARGET* calling_target)
+                                TARGET* calling_target,
+                                VARHOLDER* vh)
 {
-    TARGET* tar = find_target(dep->name);
+    TARGET* tar = find_target(dep->name,vh);
     int i;
     if (tar != NULL)
     {
@@ -621,6 +607,10 @@ int main(int argc, char* argv[]) {
     extern char* optarg;
     int ch;
     char* format = "f:hnal::L::";
+    
+    int logging = 0;
+    const char* logfile;
+    bool reset_log = false;
 
     // Variables you'll want to use
     char* filename = "Dimefile";
@@ -643,7 +633,7 @@ int main(int argc, char* argv[]) {
             	execute_all = true;
             	break;
            	case 'l':
-           	    logging = true;
+           	    logging = 1;
            	    if (optarg != NULL)
            	    {
            	        logfile = optarg;
@@ -654,7 +644,7 @@ int main(int argc, char* argv[]) {
            	    }
            	    break;
            	case 'L':
-           	    logging = true;
+           	    logging = 1;
            	    if (optarg != NULL)
            	    {
            	        logfile = optarg;
@@ -663,7 +653,7 @@ int main(int argc, char* argv[]) {
            	    {
            	        logfile = default_log;
            	    }
-           	    reset_log();
+           	    reset_log = true;
            	    break;
            	case '?':
            	    if (optopt == 'f')
@@ -686,12 +676,24 @@ int main(int argc, char* argv[]) {
     //Get rid of ./dime as the first argument
     argc -= optind;
     argv += optind;
+    
+    //Initialize logger
+    initialize(logging, logfile);
+    
+    if (reset_log)
+    {
+        reset();
+    }
     if (logging)
     {
         write_log(current_time());
     }
-
-    parse_file(filename);
+    
+    TARGET* first = parse_file(filename);
+    VARHOLDER var_holder;
+    var_holder.first = first;
+    var_holder.execute = execute;
+    var_holder.execute_all = execute_all;
 
     //Find all targets given on the command line
     TARGET * cur_target;
@@ -708,7 +710,8 @@ int main(int argc, char* argv[]) {
                 printf("Commands are: \n");
             }
             char* deps[] = {};
-            run_target(last, deps, 0, execute, execute_all);
+            printf("%s\n",first->name);
+            run_target(last, deps, 0, &var_holder);
         }
     }
     else
@@ -717,7 +720,7 @@ int main(int argc, char* argv[]) {
         int num_targets = 0;
         for (i = 0; i < argc; i++)
         {
-            cur_target = find_target(argv[i]);
+            cur_target = find_target(argv[i], &var_holder);
             if (cur_target == NULL)
             {
                 char message[strlen("Target  is not in Dimefile\n") +
@@ -734,7 +737,7 @@ int main(int argc, char* argv[]) {
         int targets_index = 0;
         for (i = 0; i < argc; i++)
         {
-            cur_target = find_target(argv[i]);
+            cur_target = find_target(argv[i], &var_holder);
             if (cur_target != NULL)
             {
                 targets[targets_index] = cur_target;
@@ -749,7 +752,7 @@ int main(int argc, char* argv[]) {
         for (i = 0; i < num_targets; i++)
         {
             char* deps[] = {};
-            run_target(targets[i], deps, 0, execute, execute_all);
+            run_target(targets[i], deps, 0, &var_holder);
         }
     }
     

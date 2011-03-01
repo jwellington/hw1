@@ -1,3 +1,4 @@
+
 /**************************
  * dime.h -- the header file for dime.c, a 
  * distributed make
@@ -31,10 +32,12 @@ typedef struct target
 	struct target* next;
 }TARGET;
 
-TARGET* first;
-//80 is the maximum number of tokens a 160-character line can have
-bool logging = false;
-const char* logfile;
+typedef struct var_holder
+{
+    TARGET* first;
+    bool execute;
+    bool execute_all;
+}VARHOLDER;
 
 void error(char* message);
 void reset_log();
@@ -44,20 +47,21 @@ int check_dependencies(TARGET* tar);
 int check_circular_dependencies(DEPENDENCY* dep, 
                                 char* dependencies[], 
                                 int depc,
-                                TARGET* calling_target);
+                                TARGET* calling_target,
+                                VARHOLDER* vh);
 char* current_time();
 void dime_usage(char*);
-void parse_file(char*);
+TARGET* parse_file(char*);
 void comma_in_quote_encode(char * line);
 void comma_in_quote_decode(char * line);
 void fexecvp(const char* path, char* const argv[]);
 void run_target(TARGET * cur_target, char* previous_dependencies[],
-                int depc, bool execute, bool execute_all);
-void run_command(COMMAND * com, bool execute);
+                int depc, VARHOLDER* vh);
+void run_command(COMMAND * com, VARHOLDER* vh);
 void run_tokens(char* com_list[], int numTokens);
 void clean_target(TARGET* tar);
 void clean_dependency(DEPENDENCY* dep);
 void clean_command(COMMAND* com);
 void clean_concurrent(COMMAND* com);
-TARGET* find_target(char * target_name);
+TARGET* find_target(char * target_name, VARHOLDER* vh);
 #endif
