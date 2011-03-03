@@ -22,7 +22,7 @@ extern int write_to_log(char*);
 extern int reset();
 
 //Constant variable declarations
-const int maxTokens = 512;
+const int max_tokens = 512;
 const char* default_log = "dime.log";
 const char* command_log = "EXECUTING COMMAND  |  ";
 const char* target_log =  "EXECUTING TARGET   |  ";
@@ -94,7 +94,7 @@ TARGET* parse_file(char* filename) {
     //level = 0 outside a target, 1 reading inside braces of a target
     int level = 0;
     TARGET* first = NULL;
-    COMMAND* currentCommand = NULL;
+    COMMAND* current_command = NULL;
     while ((line2 = file_getline(line2, fp)) != NULL) {
         //Get rid of newline
         //allows us to do line++ without running into a seg fault
@@ -110,45 +110,7 @@ TARGET* parse_file(char* filename) {
                 if (level == 0) //Should be reading in a line of a target and
                     //dependencies
                 {
-                    //Get target name
-
-                    char * word = strtok(line, " \t");
-                    if (line[strlen(line) - 1] != ':') {
-                        error("Dime target names must be followed by a colon.");
-                    }
-                    char * targetName = malloc(sizeof (char) * strlen(line) + 1);
-                    strncpy(targetName, line, strlen(line) - 1);
-                    targetName[strlen(line) - 1] = '\0';
-                    //Initialize next TARGET variable
-                    TARGET* tar = (TARGET*) malloc(sizeof (TARGET));
-                    tar->name = targetName;
-                    tar->next = first;
-                    first = tar;
-                    tar->dependencies = NULL;
-                    DEPENDENCY* current_dep = tar->dependencies;
-                    word = strtok(NULL, " \t");
-                    //Create linked list of dependencies
-                    while (word != NULL && *word != '{') {
-                        char * dep_name = malloc(sizeof (char) * strlen(word) + 1);
-                        strcpy(dep_name, word);
-                        DEPENDENCY* dep = (DEPENDENCY*) malloc(sizeof (DEPENDENCY));
-                        dep->name = dep_name;
-                        dep->next = NULL;
-                        if (current_dep != NULL)
-                        {
-                            current_dep->next = dep;
-                            current_dep = dep;
-                        }
-                        else
-                        {
-                            current_dep = dep;
-                            tar->dependencies = dep;
-                        }
-                        word = strtok(NULL, " \t");
-                    }
-                    if (*word != '{') {
-                        error("The line containing the target name must end with a {");
-                    }
+                    first = read_target(line, first);
                     level = 1;
                 } else //We should be reading in commands of a close paren
                 {
@@ -157,7 +119,7 @@ TARGET* parse_file(char* filename) {
                     if (strlen(line) == 1 && *line == '}') //End the list of commands
                     {
                         level = 0;
-                        currentCommand = NULL;
+                        current_command = NULL;
                     } else //Read in a command and add it to the linked list in correct order
                     {
                         COMMAND* com = (COMMAND*) malloc(sizeof (COMMAND));
@@ -199,12 +161,12 @@ TARGET* parse_file(char* filename) {
                             line = strtok(NULL, ",");
                         }
 
-                        if (currentCommand != NULL) {
-                            currentCommand->next = com;
+                        if (current_command != NULL) {
+                            current_command->next = com;
                         } else {
                             tar->commands = com;
                         }
-                        currentCommand = com;
+                        current_command = com;
                     }
                 }
             }
@@ -212,6 +174,46 @@ TARGET* parse_file(char* filename) {
     }
     fclose(fp);
     free(line2);
+    return first;
+}
+//Read in a target from the dimefile
+TARGET * read_target(char * line, TARGET * first) {
+    //Get target name
+
+    char * word = strtok(line, " \t");
+    if (line[strlen(line) - 1] != ':') {
+        error("Dime target names must be followed by a colon.");
+    }
+    char * target_name = malloc(sizeof (char) * strlen(line) + 1);
+    strncpy(target_name, line, strlen(line) - 1);
+    target_name[strlen(line) - 1] = '\0';
+    //Initialize next TARGET variable
+    TARGET* tar = (TARGET*) malloc(sizeof (TARGET));
+    tar->name = target_name;
+    tar->next = first;
+    first = tar;
+    tar->dependencies = NULL;
+    DEPENDENCY* current_dep = tar->dependencies;
+    word = strtok(NULL, " \t");
+    //Create linked list of dependencies
+    while (word != NULL && *word != '{') {
+        char * dep_name = malloc(sizeof (char) * strlen(word) + 1);
+        strcpy(dep_name, word);
+        DEPENDENCY* dep = (DEPENDENCY*) malloc(sizeof (DEPENDENCY));
+        dep->name = dep_name;
+        dep->next = NULL;
+        if (current_dep != NULL) {
+            current_dep->next = dep;
+            current_dep = dep;
+        } else {
+            current_dep = dep;
+            tar->dependencies = dep;
+        }
+        word = strtok(NULL, " \t");
+    }
+    if (*word != '{') {
+        error("The line containing the target name must end with a {");
+    }
     return first;
 }
 
@@ -338,30 +340,30 @@ void run_command(COMMAND * com, VARHOLDER* vh) {
     char com_str[strlen(com->str)+1];
     strcpy(com_str,com->str);
 	char * com_part = strtok(com_str, " ");
-	int numTokens = maxTokens + 1;
-	char * com_list[maxTokens + 1];
+	int num_tokens = max_tokens + 1;
+	char * com_list[max_tokens + 1];
 	int i = 0;
-	com_list[maxTokens] = NULL;
+	com_list[max_tokens] = NULL;
 	//Populate array of tokens
-	for (; i < maxTokens; i++) {
+	for (; i < max_tokens; i++) {
 		com_list[i] = com_part;
 		com_part = strtok(NULL, " ");
-		if (com_part == NULL && numTokens > maxTokens)
+		if (com_part == NULL && num_tokens > max_tokens)
 		{
-		    numTokens = i + 1;
+		    num_tokens = i + 1;
 		}
 	}
-	if (numTokens > maxTokens)
+	if (num_tokens > max_tokens)
 	{
-	    numTokens = maxTokens;
+	    num_tokens = max_tokens;
 	}
 	//Execute or display the command
 	if (execute)
 	{
-	    run_tokens(com_list, numTokens);
+	    run_tokens(com_list, num_tokens);
 	}
 	else {
-	  for (i = 0; i < numTokens; i++) {
+	  for (i = 0; i < num_tokens; i++) {
 		   if (com_list[i] != NULL)
 		       printf("%s ", com_list[i]);
 	  }

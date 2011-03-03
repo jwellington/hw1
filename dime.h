@@ -53,6 +53,7 @@ int check_circular_dependencies(DEPENDENCY* dep,
 char* current_time();
 void dime_usage(char*);
 TARGET* parse_file(char*);
+TARGET* read_target(char *, TARGET *);
 void comma_in_quote_encode(char * line);
 void comma_in_quote_decode(char * line);
 void fexecvp(const char* path, char* const argv[]);
